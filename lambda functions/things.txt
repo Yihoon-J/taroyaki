@@ -1,0 +1,585 @@
+1. Websocket 인증 방식 확인
+
+yihoon-j@YH-2 tarot_chat % aws apigatewayv2 get-api --api-id tt0ikgb3sd
+{
+    "ApiEndpoint": "wss://tt0ikgb3sd.execute-api.us-east-1.amazonaws.com",
+    "ApiId": "tt0ikgb3sd",
+    "ApiKeySelectionExpression": "$request.header.x-api-key",
+    "CreatedDate": "2024-07-20T14:56:06+00:00",
+    "DisableExecuteApiEndpoint": false,
+    "Name": "tarotchat_wss",
+    "ProtocolType": "WEBSOCKET",
+    "RouteSelectionExpression": "$request.body.action",
+    "Tags": {}
+}
+yihoon-j@YH-2 tarot_chat % aws apigatewayv2 get-routes --api-id tt0ikgb3sd
+
+{
+    "Items": [
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "913zthq",
+            "RouteKey": "$connect",
+            "Target": "integrations/9b798dh"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "d09pqzd",
+            "RouteKey": "sendMessage",
+            "Target": "integrations/sr9y90f"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "mp1xpe8",
+            "RouteKey": "$disconnect",
+            "Target": "integrations/t3bxw2t"
+        }
+    ]
+}
+
+yihoon-j@YH-2 tarot_chat % aws apigatewayv2 get-integrations --api-id tt0ikgb3sd
+{
+    "Items": [
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "9b798dh",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_connect/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "sr9y90f",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_sendMessage/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "t3bxw2t",
+            "IntegrationMethod": "POST",
+:...skipping...
+{
+    "Items": [
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "9b798dh",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_connect/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "sr9y90f",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_sendMessage/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "t3bxw2t",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+:...skipping...
+{
+    "Items": [
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "9b798dh",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_connect/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "sr9y90f",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_sendMessage/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "t3bxw2t",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_disconnect/invocations",
+:...skipping...
+{
+    "Items": [
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "9b798dh",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_connect/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "sr9y90f",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_sendMessage/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "t3bxw2t",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_disconnect/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+:...skipping...
+{
+    "Items": [
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "9b798dh",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_connect/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "sr9y90f",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_sendMessage/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "t3bxw2t",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_disconnect/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        }
+    ]
+}
+:...skipping...
+{
+    "Items": [
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "9b798dh",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_connect/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "sr9y90f",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_sendMessage/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        },
+        {
+            "ConnectionType": "INTERNET",
+            "IntegrationId": "t3bxw2t",
+            "IntegrationMethod": "POST",
+            "IntegrationType": "AWS_PROXY",
+            "IntegrationUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:312210210072:function:tarotchat_disconnect/invocations",
+            "PassthroughBehavior": "WHEN_NO_MATCH",
+            "PayloadFormatVersion": "1.0",
+            "TimeoutInMillis": 29000
+        }
+    ]
+}
+
+2. Lambda 함수들의 현재 인증 방식
+yihoon-j@YH-2 tarot_chat % aws apigateway get-rest-api --rest-api-id blgg29wto5
+{
+    "id": "blgg29wto5",
+    "name": "tarotchat_rest",
+    "createdDate": "2024-08-30T18:34:53+09:00",
+    "apiKeySource": "HEADER",
+    "endpointConfiguration": {
+        "types": [
+            "REGIONAL"
+        ]
+    },
+    "tags": {},
+    "disableExecuteApiEndpoint": false,
+    "rootResourceId": "kuaef29q19"
+}
+yihoon-j@YH-2 tarot_chat % aws apigateway get-authorizers --rest-api-id blgg29wto5
+{
+    "items": []
+}
+yihoon-j@YH-2 tarot_chat % aws lambda get-policy --function-name tarotchat_getsessionmsg
+{
+    "Policy": "{\"Version\":\"2012-10-17\",\"Id\":\"default\",\"Statement\":[{\"Sid\":\"d17cab0c-5109-533c-acce-dcdd5767e568\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"apigateway.amazonaws.com\"},\"Action\":\"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-1:312210210072:function:tarotchat_getsessionmsg\",\"Condition\":{\"ArnLike\":{\"AWS:SourceArn\":\"arn:aws:execute-api:us-east-1:312210210072:blgg29wto5/*/GET/sessions/*\"}}}]}",
+    "RevisionId": "ee07f248-f911-4080-8072-00abd84b3eac"
+}
+* 모든 Lambda 함수의 IAM 역할 정책은 동일하게 설정되어 있음
+
+3. 세션 관리 방식
+yihoon-j@YH-2 tarot_chat % aws cognito-idp describe-user-pool --user-pool-id ap-northeast-2_oTHa9Jky1
+{
+    "UserPool": {
+        "Id": "ap-northeast-2_oTHa9Jky1",
+        "Name": "Tarotchat-CognitoUserPool",
+        "Policies": {
+            "PasswordPolicy": {
+                "MinimumLength": 8,
+                "RequireUppercase": true,
+                "RequireLowercase": true,
+                "RequireNumbers": true,
+                "RequireSymbols": true,
+                "TemporaryPasswordValidityDays": 7
+            }
+        },
+        "DeletionProtection": "ACTIVE",
+        "LambdaConfig": {},
+        "LastModifiedDate": "2024-11-25T12:02:53.011000+09:00",
+        "CreationDate": "2024-11-25T10:29:50.238000+09:00",
+        "SchemaAttributes": [
+            {
+                "Name": "profile",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "address",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "birthdate",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "10",
+                    "MaxLength": "10"
+                }
+            },
+            {
+                "Name": "gender",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "preferred_username",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "updated_at",
+                "AttributeDataType": "Number",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "NumberAttributeConstraints": {
+                    "MinValue": "0"
+                }
+            },
+            {
+                "Name": "website",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "picture",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "identities",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {}
+            },
+            {
+                "Name": "sub",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": false,
+                "Required": true,
+                "StringAttributeConstraints": {
+                    "MinLength": "1",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "phone_number",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "phone_number_verified",
+                "AttributeDataType": "Boolean",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false
+            },
+            {
+                "Name": "zoneinfo",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "locale",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "email",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "email_verified",
+                "AttributeDataType": "Boolean",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false
+            },
+            {
+                "Name": "given_name",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "family_name",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "middle_name",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "name",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            },
+            {
+                "Name": "nickname",
+                "AttributeDataType": "String",
+                "DeveloperOnlyAttribute": false,
+                "Mutable": true,
+                "Required": false,
+                "StringAttributeConstraints": {
+                    "MinLength": "0",
+                    "MaxLength": "2048"
+                }
+            }
+        ],
+        "AutoVerifiedAttributes": [
+            "email"
+        ],
+        "UsernameAttributes": [
+            "email"
+        ],
+        "VerificationMessageTemplate": {
+            "DefaultEmailOption": "CONFIRM_WITH_CODE"
+        },
+        "UserAttributeUpdateSettings": {
+            "AttributesRequireVerificationBeforeUpdate": []
+        },
+        "MfaConfiguration": "OFF",
+        "EstimatedNumberOfUsers": 1,
+        "EmailConfiguration": {
+            "EmailSendingAccount": "COGNITO_DEFAULT"
+        },
+        "UserPoolTags": {},
+        "Domain": "tarotchatailogin",
+        "AdminCreateUserConfig": {
+            "AllowAdminCreateUserOnly": false,
+            "UnusedAccountValidityDays": 7
+        },
+        "UsernameConfiguration": {
+            "CaseSensitive": false
+        },
+        "Arn": "arn:aws:cognito-idp:ap-northeast-2:312210210072:userpool/ap-northeast-2_oTHa9Jky1",
+        "AccountRecoverySetting": {
+            "RecoveryMechanisms": [
+                {
+                    "Priority": 1,
+                    "Name": "verified_email"
+                },
+                {
+                    "Priority": 2,
+                    "Name": "verified_phone_number"
+                }
+            ]
+        }
+    }
+}
+
+yihoon-j@YH-2 tarot_chat % aws cognito-idp describe-user-pool-client \
+    --user-pool-id ap-northeast-2_oTHa9Jky1 \
+    --client-id 22vgp9mnahqeflrg20hg8tfggc
+{
+    "UserPoolClient": {
+        "UserPoolId": "ap-northeast-2_oTHa9Jky1",
+        "ClientName": "TarotchatAI",
+        "ClientId": "22vgp9mnahqeflrg20hg8tfggc",
+        "ClientSecret": "r79bhegghsossk81ae73f0m83ok9083qg2kdnfqvfids7999o40",
+        "LastModifiedDate": "2024-12-07T11:30:31.851000+09:00",
+        "CreationDate": "2024-11-25T10:29:50.606000+09:00",
+        "RefreshTokenValidity": 5,
+        "AccessTokenValidity": 60,
+        "IdTokenValidity": 60,
+        "TokenValidityUnits": {
+            "AccessToken": "minutes",
+            "IdToken": "minutes",
+            "RefreshToken": "days"
+        },
+        "ExplicitAuthFlows": [
+            "ALLOW_REFRESH_TOKEN_AUTH",
+            "ALLOW_USER_AUTH",
+            "ALLOW_USER_SRP_AUTH"
+        ],
+        "SupportedIdentityProviders": [
+            "KakaoLogin"
+        ],
+        "CallbackURLs": [
+            "http://localhost:3001/login_test.html",
+            "https://d84l1y8p4kdic.cloudfront.net"
+        ],
+        "AllowedOAuthFlows": [
+            "code"
+        ],
+        "AllowedOAuthScopes": [
+            "email",
+            "openid",
+            "profile"
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "PreventUserExistenceErrors": "ENABLED",
+        "EnableTokenRevocation": true,
+        "EnablePropagateAdditionalUserContextData": false,
+        "AuthSessionValidity": 3
+    }
+}

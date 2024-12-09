@@ -1,0 +1,13 @@
+[app]
+ns="KakaoAuthDemo"
+stage="Dev"
+
+[aws]
+region="us-east-1"
+
+[auth]
+# https://developers.kakao.com/
+clientId="495448ff0df100c12c7ddea78b37fee0" # Kakaotalk application rest api key
+clientSecret="AdTOT3MDDizzx40MKQXxEiW0d1VfDUri" # Kakaotalk application secret key
+scopes=["openid"] # Kakao OIDC scopes does not support "email" scope
+redirectUris=["http://localhost:3000/callback"]

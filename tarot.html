@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarot Chat</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+    <link rel="stylesheet" href="tarotchat_style.css">
+    <style>
+        body { 
+            font-family: 'Pretendard Variable'; 
+            margin: 0; padding: 0; 
+            display: flex;
+            overflow: hidden;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="mainContent">
+        <div id="sidebar" class="expanded">
+            <div id="TitleBox">
+                <h1 id="MainTitle">AI TAROT</h1>
+                <button id="collapseBtn">
+                    <span id="collapseBtnIcon"></span>
+                </button>
+            </div>
+            <div class="divLine"></div>
+            <button id="newChatButton">
+                <span id="newChatButtonIcon"></span>
+                <span id=""newChatButtonText">새 대화 시작</span>
+            </button>        
+            <div class="divLine"></div>
+            <div id="sessionList"></div>
+            <button id="SettingsButton">
+                <span id="SettingsButtonIcon"></span>
+                <span id="SettingsButtonText">설정</span>
+            </button>
+        </div>
+        <div id="collapsedSidebar" class="collapsed" style="display: none;">
+            <div id="collapsedlogo">T</div>
+            <button id="expandBtn"></button>
+            <div class="divLine"></div>
+            <button id="collapsedNewChatBtn"></button>
+            <button id="collapsedSettingsBtn"></button>
+          </div>
+        <div id="settingsModal" class="modal">
+            <div class="modal-content">
+              <span class="settingsclose">&times;</span>
+              <h2>서비스 설정</h2>
+              <table>
+                <tr>
+                    <td>계정 정보</td>
+                    <td><span id="userDetails"></span></td>
+                </tr>
+                <tr>
+                    <td>credit</td>
+                    <td>Made by...</td>
+                </tr>
+                <tr>
+                    <td>데이터 관리</td>
+                    <td><button id="export">내보내기</button></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td><button id="reset">전체 데이터 삭제</button></td>
+                </tr>
+              </table>
+            </div>
+        </div>
+        <div id="profileModal" class="modalB">
+            <div class="modal-content">
+                <span class="profileclose"></span>
+                <h2>Example</h2>
+            </div>
+        </div>
+        <div id="deleteSessionModal" class="modal">
+            <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>세션 삭제 확인</h2>
+            <p>정말로 이 세션을 삭제하시겠습니까?</p>
+            <button id="confirmDelete">삭제</button>
+            <button id="cancelDelete">취소</button>
+            </div>
+        </div>
+        <div id="serviceguide">
+            <div id="GuideTitle">타로 에이전트 질문 가이드</div>
+            <div id="Guide1">
+                <div id="guide1title">내가 현재 처해 있는 상황과 고민을 자세히 작성할수록 리딩이 정확해집니다.</div>
+                <div id="guide1p1">
+                    (X)연애운을 알려줘<br>(X)취직할 수 있을까?
+                </div>
+                <ul id="guide1p2">
+                    <li id="g1p2b1">면접본 두 곳에서 합격했는데</li>
+                    <li id="g1p2b2">나는 프로덕트 디자이너로</li>
+                </ul>
+            </div>
+            <div id="Guide2">
+                <div id="guide2title">추가적인 정보를 알고 싶다면 '조언'이나 '추가질문'을 질문해보세요.</div>
+                <div id="guide2p1">
+                    어쩌구<br>저쩌구
+                </div>
+                <ul id="guide2p2">
+                    <li id="g2p2b1">마 니</li>
+                    <li id="g2p2b2">서마터폰 중독이다</li>
+                </ul>
+            </div>
+            <div id="Guide3">
+                <div id="guide3title">내가 현재 처해 있는 상황과 고민을 자세히 작성할수록 리딩이 정확해집니다.</div>
+                <div id="guide3p1">
+                    (X)연애운을 알려줘<br>(X)취직할 수 있을까?
+                </div>
+                <ul id="guide3p2">
+                    <li id="g3p2b1">면접본 두 곳에서 합격했는데</li>
+                    <li id="g3p2b2">나는 프로덕트 디자이너로</li>
+                </ul>
+            </div>
+        </div>
+        <div id="contentWrapper">
+            <button id="ProfileBtn"></button>
+            <div id="chatBox"></div>
+            <div id="inputArea">
+                <input type="text" id="messageInput" placeholder="고민상황을 자유롭게 물어보세요.">
+                <button id="SendButton">
+                    <div id="SendButtonIcon"></div>
+                </button>
+            </div>
+            <div id="warningmsg">
+                <p>Tarot AI는 아직 학습중입니다. 답변에서 실수가 있을 수 있습니다.</p>
+            </div>
+        </div>
+    </div>
+    <script type="importmap">
+        {
+          "imports": {
+            "aws-amplify": "https://cdn.jsdelivr.net/npm/aws-amplify@5.3.12/dist/esm/index.mjs"
+          }
+        }
+    </script>
+    <script type="module" src="tarotchat_service.js"></script>
+    <script type="module">
+        import { initializePage, initializeEventListeners, startNewChat, sendMessage, logout } from './tarotchat_service.js';
+        
+        // Make functions globally available
+        window.startNewChat = startNewChat;
+        window.sendMessage = sendMessage;
+        window.logout = logout;
+    </script>
+</body>
+</html>
