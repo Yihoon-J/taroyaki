@@ -4,49 +4,149 @@ let currentSessionId;
 let sessionToDelete = null;
 let isWaitingForResponse = false;
 let isInputFocused = false;
+let accessToken = null;
+let tokenExpiryTime = null;
+let refreshTimer = null;
 
-let API_URL, WS_URL;
+let API_URL, WS_URL, CONFIG_URL, REDIRECT_URI, COGNITO_DOMAIN, CLIENT_ID, FLASK_URL;
 
 async function fetchConfig() {
     try {
-        const response = await fetch('/api/config');
+        const response = await fetch('http://localhost:3002/api/config');
         if (!response.ok) throw new Error('Failed to fetch configuration');
+
         const config = await response.json();
+
+        // 설정값 할당
         API_URL = config.apiUrl;
         WS_URL = config.wsUrl;
+        REDIRECT_URI = config.redUri;
+        CONFIG_URL = config.confURL;
+        COGNITO_DOMAIN = config.cogDom;
+        CLIENT_ID = config.cliId;
+        FLASK_URL = config.flaUrl;
+
+        // 필수 설정값 검증
+        const requiredFields = ['apiUrl', 'wsUrl', 'redUri', 'cogDom', 'cliId'];
+        const missingFields = requiredFields.filter(field => !config[field]);
+        
+        if (missingFields.length > 0) {
+            throw new Error(`Missing required configuration fields: ${missingFields.join(', ')}`);
+        }
+        
+        console.log('Configuration loaded successfully');
     } catch (error) {
         console.error('Error fetching config:', error);
+        throw error;
     }
 }
 
+function redirectToLogin() {
+    if (!COGNITO_DOMAIN || !CLIENT_ID || !REDIRECT_URI) {
+        console.error('Missing required configuration');
+        return;
+    }
+    const loginUrl = `${COGNITO_DOMAIN}/login?client_id=${CLIENT_ID}&response_type=code&scope=email+openid+profile&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+    window.location.href = loginUrl;
+}
+
 async function initializePage() {
-    const code = getAuthorizationCode();
-    if (code) {
+    try {
+        // 1. 설정 로드
+        await fetchConfig();
+        
         try {
-            // Exchange code for tokens
-            await exchangeCodeForTokens(code);
-            // Get user info
+            // 2. 기존 세션 확인
             const userInfo = await fetchUserInfo();
             if (userInfo) {
+                // 2-1. 기존 세션이 있는 경우
                 userId = userInfo.sub;
                 updateUserInfo(userInfo);
                 fetchSessions();
                 updateProfileButton(userInfo);
-                displayWelcomeMessage();
+                setupTokenRefresh(3600); // 1시간마다 토큰 갱신
+                return;  // 세션이 있으면 여기서 종료
             }
         } catch (error) {
-            console.error('Authentication error:', error);
-            document.getElementById('userDetails').textContent = 'Authentication failed';
+            console.log('No existing session found, proceeding to check for auth code');
         }
-    } else {
-        console.error('No authorization code found');
-        document.getElementById('userDetails').textContent = 'Not authenticated';
+
+        // 3. URL에서 인증 코드 확인
+        const code = getAuthorizationCode();
+        if (code) {
+            try {
+                // 3-1. 인증 코드로 토큰 교환
+                const tokenResponse = await exchangeCodeForTokens(code);
+                if (tokenResponse.success) {
+                    // 토큰 갱신 타이머 설정
+                    setupTokenRefresh(tokenResponse.expires_in);
+                    accessToken = tokenResponse.access_token;
+                    
+                    // 사용자 정보 가져오기
+                    const userInfo = await fetchUserInfo();
+                    if (userInfo) {
+                        userId = userInfo.sub;
+                        updateUserInfo(userInfo);
+                        fetchSessions();
+                        updateProfileButton(userInfo);
+                        displayWelcomeMessage();
+                        
+                        // URL에서 인증 코드 제거
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        return;  // 성공적으로 처리되면 여기서 종료
+                    }
+                }
+            } catch (error) {
+                console.error('Authentication error:', error);
+                document.getElementById('userDetails').textContent = 'Authentication failed';
+                redirectToLogin();
+                return;
+            }
+        }
+
+        // 4. 위의 모든 경우가 실패하면 로그인 페이지로 리다이렉션
+        redirectToLogin();
+        
+    } catch (error) {
+        console.error('Failed to initialize page:', error);
+        document.getElementById('userDetails').textContent = 'Failed to load application configuration';
     }
+}
+
+function setupTokenRefresh(expiresIn) {
+    // 토큰 만료 10분 전에 갱신
+    const refreshTime = (expiresIn - 600) * 1000;
+    
+    if (refreshTimer) {
+        clearTimeout(refreshTimer);
+    }
+    
+    refreshTimer = setTimeout(async () => {
+        try {
+            const response = await fetch('/auth/refresh', {
+                method: 'POST',
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    accessToken = data.access_token;
+                    setupTokenRefresh(data.expires_in);
+                }
+            } else {
+                redirectToLogin();
+            }
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+            redirectToLogin();
+        }
+    }, refreshTime);
 }
 
 async function fetchUserInfo() {
     try {
-        const response = await fetch('http://localhost:3000/api/user-info', {
+        const response = await fetch(`${FLASK_URL}/api/user-info`, {
             credentials: 'include'
         });
         
@@ -54,9 +154,7 @@ async function fetchUserInfo() {
             throw new Error('Failed to fetch user info');
         }
         
-        const userInfo = await response.json();
-        return userInfo;
-        
+        return await response.json();
     } catch (error) {
         console.error('Error fetching user info:', error);
         throw error;
@@ -70,8 +168,7 @@ function getAuthorizationCode() {
 
 async function exchangeCodeForTokens(code) {
     try {
-        
-        const response = await fetch('http://localhost:3000/auth/token', {
+        const response = await fetch(`${FLASK_URL}/auth/token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -80,15 +177,13 @@ async function exchangeCodeForTokens(code) {
             body: JSON.stringify({ code })
         });
         
-        
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Token exchange error response:', errorText);
-            throw new Error(`Token exchange failed: ${response.status}`);
+            const errorData = await response.json();
+            console.error('Token exchange error:', errorData);
+            throw new Error(errorData.error || 'Token exchange failed');
         }
         
-        const data = await response.json();
-        return data;
+        return await response.json();
     } catch (error) {
         console.error('Token exchange error:', error);
         throw error;
@@ -491,19 +586,31 @@ function closeDeleteModal() {
     sessionToDelete = null;
 }
 
-function logout() {
-    // Clear session
-    fetch('http://localhost:3000/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-    }).then(() => {
-        // Redirect to Cognito logout URL
-        const cognitoDomain = 'https://tarotchatailogin.auth.ap-northeast-2.amazoncognito.com';
-        const clientId = '22vgp9mnahqeflrg20hg8tfggc';
-        const logoutUri = 'http://localhost:3001/login_test.html';
+async function logout() {
+    try {
+        // 환경변수가 설정되었는지 확인
+        if (!COGNITO_DOMAIN || !CLIENT_ID || !REDIRECT_URI) {
+            console.error('Missing required configuration');
+            return;
+        }
+
+        // 백엔드 세션 클리어
+        await fetch('http://localhost:3000/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
         
-        window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${logoutUri}`;
-    });
+        // Cognito 로그아웃 URL로 리다이렉트
+        const logoutUrl = `${COGNITO_DOMAIN}/logout?client_id=${CLIENT_ID}&logout_uri=${encodeURIComponent(REDIRECT_URI)}`;
+        window.location.href = logoutUrl;
+    } catch (error) {
+        console.error('Logout failed:', error);
+        // 에러가 발생해도 Cognito 로그아웃으로 리다이렉트
+        if (COGNITO_DOMAIN && CLIENT_ID && REDIRECT_URI) {
+            const logoutUrl = `${COGNITO_DOMAIN}/logout?client_id=${CLIENT_ID}&logout_uri=${encodeURIComponent(REDIRECT_URI)}`;
+            window.location.href = logoutUrl;
+        }
+    }
 }
 
 function initializeEventListeners() {
