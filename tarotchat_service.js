@@ -55,34 +55,15 @@ async function initializePage() {
         // 1. 설정 로드
         await fetchConfig();
         
-        try {
-            // 2. 기존 세션 확인
-            const userInfo = await fetchUserInfo();
-            if (userInfo) {
-                // 2-1. 기존 세션이 있는 경우
-                userId = userInfo.sub;
-                updateUserInfo(userInfo);
-                fetchSessions();
-                updateProfileButton(userInfo);
-                setupTokenRefresh(3600); // 1시간마다 토큰 갱신
-                return;  // 세션이 있으면 여기서 종료
-            }
-        } catch (error) {
-            console.log('No existing session found, proceeding to check for auth code');
-        }
-
-        // 3. URL에서 인증 코드 확인
+        // 2. URL의 인증 코드 확인
         const code = getAuthorizationCode();
         if (code) {
             try {
-                // 3-1. 인증 코드로 토큰 교환
                 const tokenResponse = await exchangeCodeForTokens(code);
                 if (tokenResponse.success) {
-                    // 토큰 갱신 타이머 설정
                     setupTokenRefresh(tokenResponse.expires_in);
                     accessToken = tokenResponse.access_token;
                     
-                    // 사용자 정보 가져오기
                     const userInfo = await fetchUserInfo();
                     if (userInfo) {
                         userId = userInfo.sub;
@@ -93,18 +74,30 @@ async function initializePage() {
                         
                         // URL에서 인증 코드 제거
                         window.history.replaceState({}, document.title, window.location.pathname);
-                        return;  // 성공적으로 처리되면 여기서 종료
+                        return;
                     }
                 }
             } catch (error) {
                 console.error('Authentication error:', error);
-                document.getElementById('userDetails').textContent = 'Authentication failed';
-                redirectToLogin();
-                return;
             }
         }
 
-        // 4. 위의 모든 경우가 실패하면 로그인 페이지로 리다이렉션
+        // 3. 기존 세션 확인
+        try {
+            const userInfo = await fetchUserInfo();
+            if (userInfo) {
+                userId = userInfo.sub;
+                updateUserInfo(userInfo);
+                fetchSessions();
+                updateProfileButton(userInfo);
+                setupTokenRefresh(3600);
+                return;
+            }
+        } catch (error) {
+            console.log('No existing session found');
+        }
+
+        // 4. 인증되지 않은 경우 로그인 페이지로 리다이렉션
         redirectToLogin();
         
     } catch (error) {
@@ -699,6 +692,12 @@ function initializeEventListeners() {
 
     // Initialize sidebar controls
     initializeSidebarControls();
+
+    // logout
+    const logoutButton = document.getElementById('logoutbtn');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', logout);
+    }
 }
 
 function initializeSidebarControls() {

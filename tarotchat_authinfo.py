@@ -10,7 +10,7 @@ import os
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=['http://localhost:3001', 'http://localhost:3002'])
+CORS(app, supports_credentials=True, origins=['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'])
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 app.config.update(
     SESSION_COOKIE_SECURE=True,

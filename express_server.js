@@ -23,7 +23,8 @@ app.get('/api/config', (req, res) => {
         cogDom: process.env.COGNITO_DOMAIN,
         cliId: process.env.CLIENT_ID,
         confURL: process.env.CONFIG_URL,
-        flaUrl: process.env.FLASK_URL
+        flaUrl: process.env.FLASK_URL,
+        logoutUri: process.env.LOGOUT_URI
     });
 });
 
