@@ -52,7 +52,7 @@ def generate_session_name(user_message):
             "temperature": 0.1
         }
     )
-    prompt = f"사용자의 다음 고민을 바탕으로 30자 이내의 세션 이름을 생성해 줘: {user_message}"
+    prompt = f"사용자의 다음 고민을 바탕으로 30자 이내의 세션 이름을 생성해 줘. 자연스러운 제목이 되도록 '세션'이라는 표현은 쓰지 말아 줘: {user_message}"
     response = model.invoke([HumanMessage(content=prompt)])
     print('Session Name Suggested: ', response)
     session_name=response.content.strip()

@@ -39,44 +39,46 @@
         </div>
         <div id="collapsedSidebar" class="collapsed" style="display: none;">
             <div id="collapsedlogo">T</div>
-            <button id="expandBtn"></button>
+            <button id="expandBtn">
+                <div id="expandBtnIcon"></div>
+            </button>
             <div class="divLine"></div>
-            <button id="collapsedNewChatBtn"></button>
-            <button id="collapsedSettingsBtn"></button>
+            <button id="collapsedNewChatBtn">
+                <div id="collapsedNewChatBtnIcon"></div>
+            </button>
+            <div class="divLine"></div>
+            <button id="collapsedSettingsBtn">
+                <div id="collapsedSettingsBtnIcon"></div>
+            </button>
           </div>
-        <div id="settingsModal" class="modal">
-            <div class="modal-content">
-              <span class="settingsclose">&times;</span>
-              <h2>서비스 설정</h2>
-              <table>
-                <tr>
-                    <td>계정 정보</td>
-                    <td><span id="userDetails"></span></td>
-                </tr>
-                <tr>
-                    <td>credit</td>
-                    <td>Made by...</td>
-                </tr>
-                <tr>
-                    <td>데이터 관리</td>
-                    <td><button id="export">내보내기</button></td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td><button id="reset">전체 데이터 삭제</button></td>
-                </tr>
-              </table>
+        <div id="settings" class="modalA">
+            <div class="modalA-content">
+              <span class="settingsclose">
+                <div id="settingscloseicon"></div>
+              </span>
+              <div id="settingsbody">
+                <div id="modalAtitle">Settings</div>
+                <div class="divLine"></div>
+                <div class="settingsbodytitle">계정 정보</div>
+                    <span id="userDetails" class="settingsbodytext"></span>
+                <div class="settingsbodytitle">데이터 관리</div>
+                <span id="exportbtn" class="settingsbodytext">데이터 내보내기</span>
+                <span id="reset" class="settingsbodytext">데이터 전체 삭제</span>
+                <div class="settingsbodytitle">크레딧</div>
+                    <a id="heemcredit" class="settingsbodytext" href="https://www.linkedin.com/in/%ED%9D%AC%EA%B2%BD-%EA%B9%80-780a4b23b/">heem</a>
+                    <a id="yihooncredit"class="settingsbodytext" href="https://www.linkedin.com/in/yihoon-j/">yihoon</a>
+              </div>
+              
             </div>
         </div>
         <div id="profileModal" class="modalB">
-            <div class="modal-content">
-                <button class="profileclose">&times;</button>
-                <h2>Example</h2>
-                <button id="logoutbtn">logout</button>
+            <div class="modalB-content">
+                <button id="settingbtnB">Setting</button>
+                <button id="logoutbtn">Logout</button>
             </div>
         </div>
-        <div id="deleteSessionModal" class="modal">
-            <div class="modal-content">
+        <div id="deleteSessionModal" class="modalC">
+            <div class="modalC-content">
             <span class="close">&times;</span>
             <h2>세션 삭제 확인</h2>
             <p>정말로 이 세션을 삭제하시겠습니까?</p>
@@ -92,8 +94,8 @@
                     (X)연애운을 알려줘<br>(X)취직할 수 있을까?
                 </div>
                 <ul id="guide1p2">
-                    <li id="g1p2b1">면접본 두 곳에서 합격했는데</li>
-                    <li id="g1p2b2">나는 프로덕트 디자이너로</li>
+                    <li id="g1p2b1">면접본 두 곳에서 합격했는데, 하나는 대기업이고 나랑 잘 맞는 직무가 아니야. 다른 하나는 스타트업이지만 내가 잘 할 것 같은 직무야. 어느 기업을 고르는 게 좋을까?</li>
+                    <li id="g1p2b2">나는 프로덕트 디자이너로 취업을 준비 중인데, 올 하반기에 내가 원하는 기업에 취업할 수 있을지 궁금해.    </li>
                 </ul>
             </div>
             <div id="Guide2">
@@ -114,8 +116,8 @@
             </div>
         </div>
         <div id="contentWrapper">
-            <button id="ProfileBtn"></button>
             <div id="chatBox"></div>
+                <button id="ProfileBtn"></button>
             <div id="inputArea">
                 <input type="text" id="messageInput" placeholder="고민상황을 자유롭게 물어보세요.">
                 <button id="SendButton">

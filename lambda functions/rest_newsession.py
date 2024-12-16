@@ -54,7 +54,7 @@ def lambda_handler(event, context):
 def create_new_session(user_id):
     session_id = str(uuid.uuid4())
     current_time = datetime.now().isoformat()
-    session_name = "(새 대화)"
+    session_name = "새 대화"
     
     item = {
         'UserId': user_id,

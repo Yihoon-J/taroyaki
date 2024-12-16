@@ -1,6 +1,5 @@
 /* 스크롤바 구현 보류 */
 /* ai 메시지 간 좁은 간격 미구현, 상단 32px 임시처리 */
-/* 최소 높이 구현 시 레이아웃 박살나는 관계로 우선 미구현 */
 
 button {
   cursor: pointer;
@@ -38,7 +37,7 @@ button {
   flex-direction: column;
   align-items: center;
   width: 80px;
-  background: transparent;
+  background-color: #F6F6F6;
   padding: 10px 0;
   border-right: 1px solid #E0E0E0;
 }
@@ -47,12 +46,12 @@ button {
 /* 메인 타이틀, 사이드바 접기 영역 */
 #TitleBox{
   display: flex;
+  align-items: center;
   flex-direction: row;
   justify-content: space-between;
   height: 80px;
   width: 315px;
   margin: 16px 20px;
-  align-items: center;
 }
 
 /* 서비스 메인 타이틀 */
@@ -67,12 +66,12 @@ button {
 
 /* 접기 버튼 */
 #collapseBtn {
-  display: inline-flex;
-  align-items: center;
+  display: flex;
   justify-content: center;
+  align-items: center;
   height: 40px;
   width: 40px;
-  border: none;
+  border: 0px;
   background: transparent;
   cursor: pointer;
   transition: 0.3s ease;
@@ -80,16 +79,17 @@ button {
 
 /* 접기 버튼 아이콘 */
 #collapseBtnIcon {
-  display: block;
   width: 40px;
   height: 40px;
   background-size: contain;
   background-repeat: no-repeat;
+  background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsidebar%2C+size%3D40%2C+state%3Ddefault.png');
   transition: 0.3s ease;
 }
 
-#collapseBtnIcon:hover{
+/* 접기 버튼 호버 */
+#collapseBtn:hover #collapsedBtnIcon{
   display: block;
   width: 40px;
   height: 40px;
@@ -125,11 +125,14 @@ button {
   color: #7d7d7d;
   transition: background-color 0.3s ease;
 }
+
+/* 새 대화 시작 버튼 호버 */
 #newChatButton:hover {
   background-color: #ececec;
   color: #646464;
 }
 
+/* 새 대화 시작 버튼 아이콘 */
 #newChatButtonIcon {
   display: block;
   width: 24px;
@@ -286,40 +289,68 @@ button {
   border-radius: 12px;
   background-size: contain;
   background-repeat: no-repeat;
+  background-color: transparent;
 }
 
 /* 사이드바 접었을 때 - 펼치기 버튼 */
-#expandBtn {
+#expandBtn{
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 사이드바 접었을 때 - 펼치기 버튼 아이콘*/
+#expandBtnIcon{
+  width: 20px;
+  height: 20px;
+  background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsidebar%2C+size%3D40%2C+state%3Ddefault.png');
 }
 
 /* 사이드바 접었을 때 - 펼치기 버튼 - 호버 */
-#expandBtn.hover {
+#expandBtn.hover #expandBtnIcon{
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsidebar%2C+size%3D40%2C+state%3Dhover.png');
 }
 
 /* 사이드바 접었을 때 - 새 대화 버튼 */
-#collapsedNewChatBtn {
+#collapsedNewChatBtn{
+  display: inline-flex;
+  align-items: center;
+}
+
+#collapsedNewChatBtnIcon {
+  width: 20px;
+  height: 20px;
+  background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dnew_chat%2C+size%3D40%2C+state%3Ddefault.png');
 }
 
 /* 사이드바 접었을 때 - 새 대화 버튼 - 호버 */
-#collapsedNewChatBtn.hover {
+#collapsedNewChatBtn.hover #collapsedNewChatBtnIcon{
+  width: 20px;
+  height: 20px;
+  background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dnew_chat%2C+size%3D40%2C+state%3Dhover.png');
 }
 
 /* 사이드바 접었을 때 - 설정 버튼 */
 #collapsedSettingsBtn{
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsetting%2C+size%3D40%2C+state%3Ddefault.png');
   position: absolute;
   bottom: 10px;
 }
 
+#collapsedSettingsBtnIcon{
+  width: 20px;
+  height: 20px;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsetting%2C+size%3D40%2C+state%3Ddefault.png');
+}
+
 /* 사이드바 접었을 때 - 설정 버튼 - 호버 */
-#collapsedSettingsBtn{
+#collapsedSettingsBtn.hover collapsedSettingsBtnIcon{
+  width: 20px;
+  height: 20px;
+  background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsetting%2C+size%3D40%2C+state%3Dhover.png');
-  position: absolute;
-  bottom: 10px;
 }
 
 /* 가이드 영역 */
@@ -398,8 +429,8 @@ button {
 /* 사용자 프로필 표시 영역 */
 #ProfileBtn {
   position: absolute; 
-  top: 0px;
-  right: 0px;
+  top: 20px;
+  right: 20px;
   background: #5D5671;
   color: #FFFFFF;
   height: 36px;
@@ -491,10 +522,9 @@ button {
 /* 대화 영역 */
 /* margin-bottom = ??? */
 #chatBox {
-  position: absolute;
-  top: 40px;
-  bottom: 133px;
   display: flex;
+  position: absolute;
+  bottom: 133px;
   flex-direction: column-reverse;
   overflow-y: auto;
   width: 100%;
@@ -577,8 +607,16 @@ button {
   color: #7D7D7D;
 }
 
+/* 프로필 모달 내 설정버튼 & 로그아웃버튼 */
+#settingbtnB, #logoutbtn{
+  background-color: transparent;
+  padding: 15px;
+  font-size: 16px;
+  border: none;
+}
 
-.modal {
+/* 환경설정 모달 전체 */
+.modalA {
     display: none;
     position: fixed;
     z-index: 1;
@@ -587,53 +625,110 @@ button {
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.4);
+    background-color: rgba(0,0,0,0.7);
   }
   
-  .modal-content {
+.modalA-content {
     background-color: #fefefe;
     margin: 15% auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    max-width: 500px;
-  }
-  
-  .modalB {
-    display: none;
-    position: fixed;
-    z-index: 1;
-    right: 0;
-    top: 44px;        /* ProfileBtn(36px) + 8px 여백 */
-    width: 300px;     /* 지정된 너비 */
-    height: 300px;    /* 지정된 높이 */
-    overflow: auto;
-    box-shadow: 0px 3px 9px rgba(0,0,0,.5);
-    border: 0px;
-    border-radius: 20px;
-  }
-  
-  .modalB .modal-content {
-    background-color: #fefefe;
-    margin: 0;        /* 기존 margin 제거 */
-    padding: 20px;
-    border: 1px solid #888;
-    width: 100%;      /* 부모 컨테이너 너비에 맞춤 */
-    height: 100%;     /* 부모 컨테이너 높이에 맞춤 */
-    box-sizing: border-box;
+    padding: 52px;
+    width: 486px;
+    height: 446px;
+    border-radius: 16px;
   }
 
-  .profileclose, .settingsclose {
-    color: #aaa;
-    float: right;
-    cursor: pointer;
-    font-size: 28px;
-    font-weight: bold;
-  }
+#settingsclose{
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#settingscloseicon{
+  width: 18px;
+  height: 18px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dexit%2C+size%3D20%2C+state%3Ddefault.png');
+  transition: 0.3s ease;
+}
+
+#settingscloseicon:hover{
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dexit%2C+size%3D20%2C+state%3Dhover.png');
+}
+
+#modalAtitle{
+  size: 28px;
+  margin-bottom: 20px;
+}
+.settingsbodytitle{
+  color: #222222;
+  font-size: 16px;
+  margin: 12px 0px;
+}
+
+.settingsbodytext{
+  color: #7d7d7d;
+  background-color: transparent;
+  border: 0px;
+  size: 17px;
+  margin: 12px 0px;
+}
+/* 프로필 모달 전체 */
+.modalB {
+  display: none;
+  position: fixed;
+  z-index: 1;
+  right: 20px;
+  top: 64px;        /* ProfileBtn(36px) + 8px 여백 */
+  width: 182px;
+  height: 160px;
+  overflow: hidden;
+  box-shadow: 0px 4px 12px rgba(0,0,0,.2);
+  border: none;
+  border-radius: 10px;
+}
   
-  .profileclose:hover, .settingsclose:hover,
-  .profileclose:focus, .settingsclose:hover {
-    color: black;
-    text-decoration: none;
-    cursor: pointer;
-  }
+/* 프로필 모달 내 콘텐츠 */
+.modalB-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  padding: 16px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.modalC {
+  display: none;
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.4);
+}
+
+.modalC-content {
+  background-color: #fefefe;
+  margin: 15% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 500px;
+}
+
+/* 프로필 모달 내 사용자 정보 */
+.user-info{
+  color: #7D7D7D;
+  padding: 15px;
+}
+.profileclose, .settingsclose {
+  float: right;
+  cursor: pointer;
+}

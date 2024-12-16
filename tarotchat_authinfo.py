@@ -4,6 +4,7 @@ import requests
 import jwt
 import base64
 from datetime import datetime, timedelta
+import pytz
 from dotenv import load_dotenv
 import os
 
@@ -25,6 +26,9 @@ COGNITO_DOMAIN = os.getenv('COGNITO_DOMAIN')
 CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 REDIRECT_URI = os.getenv('REDIRECT_URI')
+
+def get_current_time():
+    return datetime.now(pytz.UTC)
 
 @app.route('/auth/token', methods=['POST'])
 def get_token():
@@ -63,11 +67,14 @@ def get_token():
         
         # 세션에 사용자 정보 저장
         session.permanent = True
+        expiry_time = get_current_time() + timedelta(seconds=tokens['expires_in'])
+        
         session['tokens'] = {
             'access_token': tokens['access_token'],
             'refresh_token': tokens['refresh_token'],
-            'token_expiry': datetime.now() + timedelta(seconds=tokens['expires_in'])
+            'token_expiry': expiry_time.isoformat()  # datetime 객체로 저장
         }
+        
         session['user'] = {
             'name': user_info.get('nickname') or user_info.get('email'),
             'email': user_info.get('email'),
@@ -118,7 +125,7 @@ def refresh_token():
         
         # 세션의 토큰 정보 업데이트
         session['tokens']['access_token'] = new_tokens['access_token']
-        session['tokens']['token_expiry'] = datetime.now() + timedelta(seconds=new_tokens['expires_in'])
+        session['tokens']['token_expiry'] = get_current_time() + timedelta(seconds=new_tokens['expires_in'])
         
         return jsonify({
             'success': True,
@@ -134,12 +141,40 @@ def refresh_token():
 def get_user_info():
     if 'user' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
+        
+    if 'tokens' not in session:
+        session.clear()
+        return jsonify({'error': 'No valid tokens'}), 401
+        
+    # 토큰 만료 확인
+    token_expiry_str = session.get('tokens', {}).get('token_expiry')
+    if token_expiry_str:
+        try:
+            token_expiry = datetime.fromisoformat(token_expiry_str)
+            if get_current_time() > token_expiry:
+                session.clear()
+                return jsonify({'error': 'Token expired'}), 401
+        except ValueError:
+            session.clear()
+            return jsonify({'error': 'Invalid token expiry format'}), 401
+    else:
+        session.clear()
+        return jsonify({'error': 'No token expiry time'}), 401
+        
     return jsonify(session['user'])
 
 @app.route('/auth/logout', methods=['POST'])
 def logout():
+    # 세션 클리어
     session.clear()
-    return jsonify({'success': True})
+    
+    # 쿠키 삭제를 위한 응답 생성
+    response = jsonify({'success': True})
+    
+    # 세션 쿠키 명시적 삭제
+    response.set_cookie('session', '', expires=0)
+    
+    return response
 
 if __name__ == '__main__':
     app.run(port=3000)

@@ -46,7 +46,16 @@ function redirectToLogin() {
         console.error('Missing required configuration');
         return;
     }
-    const loginUrl = `${COGNITO_DOMAIN}/login?client_id=${CLIENT_ID}&response_type=code&scope=email+openid+profile&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+    
+    // 강제로 새로운 로그인을 요청하는 파라미터 추가
+    const loginUrl = `${COGNITO_DOMAIN}/login?` +
+        `client_id=${CLIENT_ID}&` +
+        `response_type=code&` +
+        `scope=email+openid+profile&` +
+        `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+        `prompt=login&` +  // 강제로 로그인 화면 표시
+        `max_age=0`;       // 이전 세션 무시
+    
     window.location.href = loginUrl;
 }
 
@@ -57,48 +66,61 @@ async function initializePage() {
         
         // 2. URL의 인증 코드 확인
         const code = getAuthorizationCode();
-        if (code) {
+        
+        // 인증 코드가 없는 경우 기존 세션 검증 시도
+        if (!code) {
             try {
-                const tokenResponse = await exchangeCodeForTokens(code);
-                if (tokenResponse.success) {
-                    setupTokenRefresh(tokenResponse.expires_in);
-                    accessToken = tokenResponse.access_token;
-                    
-                    const userInfo = await fetchUserInfo();
-                    if (userInfo) {
-                        userId = userInfo.sub;
-                        updateUserInfo(userInfo);
-                        fetchSessions();
-                        updateProfileButton(userInfo);
-                        displayWelcomeMessage();
-                        
-                        // URL에서 인증 코드 제거
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        return;
-                    }
+                const response = await fetch(`${FLASK_URL}/api/user-info`, {
+                    credentials: 'include'
+                });
+                
+                // 401 Unauthorized가 아닌 경우에만 세션 유효로 판단
+                if (!response.ok) {
+                    throw new Error('No valid session');
                 }
-            } catch (error) {
-                console.error('Authentication error:', error);
-            }
-        }
-
-        // 3. 기존 세션 확인
-        try {
-            const userInfo = await fetchUserInfo();
-            if (userInfo) {
+                
+                const userInfo = await response.json();
+                if (!userInfo || !userInfo.sub) {
+                    throw new Error('Invalid user info');
+                }
+                
                 userId = userInfo.sub;
                 updateUserInfo(userInfo);
                 fetchSessions();
                 updateProfileButton(userInfo);
                 setupTokenRefresh(3600);
                 return;
+            } catch (error) {
+                // 세션이 유효하지 않은 경우 로그인 페이지로 리다이렉션
+                console.log('No valid session found, redirecting to login');
+                redirectToLogin();
+                return;
             }
-        } catch (error) {
-            console.log('No existing session found');
         }
 
-        // 4. 인증되지 않은 경우 로그인 페이지로 리다이렉션
-        redirectToLogin();
+        // 인증 코드가 있는 경우의 처리 (기존 코드)
+        try {
+            const tokenResponse = await exchangeCodeForTokens(code);
+            if (tokenResponse.success) {
+                setupTokenRefresh(tokenResponse.expires_in);
+                accessToken = tokenResponse.access_token;
+                
+                const userInfo = await fetchUserInfo();
+                if (userInfo) {
+                    userId = userInfo.sub;
+                    updateUserInfo(userInfo);
+                    fetchSessions();
+                    updateProfileButton(userInfo);
+                    displayWelcomeMessage();
+                    
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Authentication error:', error);
+            redirectToLogin();
+        }
         
     } catch (error) {
         console.error('Failed to initialize page:', error);
@@ -190,7 +212,7 @@ function updateUserInfo(userInfo) {
         
     // ProfileModal 내용 업데이트
     const profileModal = document.getElementById('profileModal');
-    const modalContent = profileModal.querySelector('.modal-content');
+    const modalContent = profileModal.querySelector('.modalB-content');
     
     // 기존 사용자 정보 요소가 있다면 제거
     const existingUserInfo = modalContent.querySelector('.user-info');
@@ -203,9 +225,8 @@ function updateUserInfo(userInfo) {
     userInfoElement.className = 'user-info';
     userInfoElement.textContent = `${userInfo.email}`;
     
-    // h2 태그 바로 다음에 삽입
-    const h2Element = modalContent.querySelector('h2');
-    h2Element.after(userInfoElement);
+    // modalContent의 첫 번째 요소 다음에 삽입
+    modalContent.insertBefore(userInfoElement, modalContent.firstChild);
 }
 
 function displayWelcomeMessage() {
@@ -581,28 +602,38 @@ function closeDeleteModal() {
 
 async function logout() {
     try {
-        // 환경변수가 설정되었는지 확인
         if (!COGNITO_DOMAIN || !CLIENT_ID || !REDIRECT_URI) {
             console.error('Missing required configuration');
             return;
         }
 
-        // 백엔드 세션 클리어
-        await fetch('http://localhost:3000/auth/logout', {
+        // 1. 백엔드 세션 클리어
+        await fetch(`${FLASK_URL}/auth/logout`, {
             method: 'POST',
             credentials: 'include'
         });
-        
-        // Cognito 로그아웃 URL로 리다이렉트
-        const logoutUrl = `${COGNITO_DOMAIN}/logout?client_id=${CLIENT_ID}&logout_uri=${encodeURIComponent(REDIRECT_URI)}`;
+
+        // 2. Cognito 쿠키들을 명시적으로 삭제
+        document.cookie = `CognitoIdentityServiceProvider.${CLIENT_ID}.*=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+        document.cookie = `cognitoIdentityServiceProvider.*=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+        document.cookie = `XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+
+        // 3. 로컬 스토리지와 세션 스토리지 클리어
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // 4. Cognito 로그아웃 URL로 리다이렉트
+        const logoutUrl = `${COGNITO_DOMAIN}/logout?` +
+            `client_id=${CLIENT_ID}&` +
+            `logout_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+            `response_type=code&` +
+            `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+            `global=true`;
+
         window.location.href = logoutUrl;
+
     } catch (error) {
         console.error('Logout failed:', error);
-        // 에러가 발생해도 Cognito 로그아웃으로 리다이렉트
-        if (COGNITO_DOMAIN && CLIENT_ID && REDIRECT_URI) {
-            const logoutUrl = `${COGNITO_DOMAIN}/logout?client_id=${CLIENT_ID}&logout_uri=${encodeURIComponent(REDIRECT_URI)}`;
-            window.location.href = logoutUrl;
-        }
     }
 }
 
@@ -634,30 +665,36 @@ function initializeEventListeners() {
     }
 
     // Settings Modal
-    const settingsModal = document.getElementById("settingsModal");
-    const settingsBtn = document.getElementById("SettingsButton");
-    const settingsSpan = document.getElementsByClassName("settingsclose")[0];
-    
-    if (settingsModal && settingsBtn && settingsSpan) {
-        settingsBtn.onclick = function() {
-            settingsModal.style.display = "block";
-        }
-        settingsSpan.onclick = function() {
-            settingsModal.style.display = "none";
-        }
+    const settingsModal = document.getElementById('settings');
+    const settingsBtn = document.getElementById('SettingsButton');
+    const collapsedSettingsBtn = document.getElementById('collapsedSettingsBtn');
+    const settingsCloseButtons = document.querySelectorAll('.settingsclose');
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            if (settingsModal) settingsModal.style.display = 'block';
+        });
     }
+
+    if (collapsedSettingsBtn) {
+        collapsedSettingsBtn.addEventListener('click', () => {
+            if (settingsModal) settingsModal.style.display = 'block';
+        });
+    }
+
+    settingsCloseButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            if (settingsModal) settingsModal.style.display = 'none';
+        });
+    }); 
 
     // Profile Modal
     const profileModal = document.getElementById("profileModal");
     const profileBtn = document.getElementById("ProfileBtn");
-    const profileSpan = document.getElementsByClassName("profileclose")[0];
     
-    if (profileModal && profileBtn && profileSpan) {
+    if (profileModal && profileBtn) {
         profileBtn.onclick = function() {
             profileModal.style.display = "block";
-        }
-        profileSpan.onclick = function() {
-            profileModal.style.display = "none";
         }
     }
 
@@ -672,18 +709,21 @@ function initializeEventListeners() {
         if (confirmBtn) confirmBtn.onclick = deleteSession;
         if (cancelBtn) cancelBtn.onclick = closeDeleteModal;
     }
-
+    
     // Global click handler for modals
     window.onclick = function(event) {
         const settingsModal = document.getElementById("settingsModal");
         const profileModal = document.getElementById("profileModal");
+        const profileBtn = document.getElementById("ProfileBtn");
         const deleteModal = document.getElementById('deleteSessionModal');
 
+        // ProfileBtn이나 profileModal의 내부를 클릭한 경우가 아닐 때만 모달을 닫음
+        if (!profileBtn.contains(event.target) && !profileModal.querySelector('.modalB-content').contains(event.target)) {
+            profileModal.style.display = "none";
+        }
+        
         if (event.target == settingsModal) {
             settingsModal.style.display = "none";
-        }
-        if (event.target == profileModal) {
-            profileModal.style.display = "none";
         }
         if (event.target == deleteModal) {
             closeDeleteModal();
@@ -705,6 +745,7 @@ function initializeSidebarControls() {
     const collapsedSidebar = document.getElementById('collapsedSidebar');
     const collapseBtn = document.getElementById('collapseBtn');
     const expandBtn = document.getElementById('expandBtn');
+    const newchatBtn=document.getElementById('newChatButton');
     const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
     const collapsedSettingsBtn = document.getElementById('collapsedSettingsBtn');
 
@@ -720,6 +761,10 @@ function initializeSidebarControls() {
             sidebar.style.display = 'flex';
             collapsedSidebar.style.display = 'none';
         });
+    }
+
+    if (newchatBtn) {
+        newchatBtn.addEventListener('click', startNewChat);
     }
 
     if (collapsedNewChatBtn) {
