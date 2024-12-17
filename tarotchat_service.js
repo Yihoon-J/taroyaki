@@ -7,6 +7,7 @@ let isInputFocused = false;
 let accessToken = null;
 let tokenExpiryTime = null;
 let refreshTimer = null;
+let isEmptySession = false;
 
 let API_URL, WS_URL, CONFIG_URL, REDIRECT_URI, COGNITO_DOMAIN, CLIENT_ID, FLASK_URL;
 
@@ -276,6 +277,13 @@ function displaySessions(sessions) {
     });
 }
 
+function checkEmptySession(messages) {
+    return Array.isArray(messages) && 
+           messages.length === 1 && 
+           messages[0].type === 'ai' && 
+           messages[0].content === "어떤 이야기를 하고 싶나요?";
+}
+
 async function disconnectCurrentSession() {
     if (socket) {
         socket.close();
@@ -325,6 +333,23 @@ function updateProfileButton(userInfo) {
     }
 }
 
+function updateNewChatButtonState() {
+    const newChatButton = document.getElementById('newChatButton');
+    const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
+    
+    if (isEmptySession) {
+        newChatButton.disabled = true;
+        newChatButton.classList.add('disabled');
+        collapsedNewChatBtn.disabled = true;
+        collapsedNewChatBtn.classList.add('disabled');
+    } else {
+        newChatButton.disabled = false;
+        newChatButton.classList.remove('disabled');
+        collapsedNewChatBtn.disabled = false;
+        collapsedNewChatBtn.classList.remove('disabled');
+    }
+}
+
 function displayMessages(messages) {
     const chatBox = document.getElementById('chatBox');
     chatBox.innerHTML = '';
@@ -347,23 +372,19 @@ function extractContent(contentData) {
 }
 
 async function loadSession(sessionId) {
-    // 같은 세션을 다시 클릭한 경우는 아무 동작도 하지 않음
     if (currentSessionId === sessionId) {
         return;
     }
 
-    // 이전 세션이 있었다면 연결 해제 처리
-    if (currentSessionId && currentSessionId !== sessionId) {
+    if (currentSessionId) {
         await disconnectCurrentSession();
     }
 
-    // Remove 'active' class from previously active session
     const previousActive = document.querySelector('.session-item.active');
     if (previousActive) {
         previousActive.classList.remove('active');
     }
-    
-    // Add 'active' class to newly selected session
+
     const newActive = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
     if (newActive) {
         newActive.classList.add('active');
@@ -375,15 +396,18 @@ async function loadSession(sessionId) {
             credentials: 'include'
         });
         const messages = await response.json();
-        console.log('API Response:', messages);
         
+        // 빈 세션 여부 체크
+        isEmptySession = checkEmptySession(messages);
+        updateNewChatButtonState();
+
         if (!Array.isArray(messages)) {
-            console.error('Unexpected response format. Expected an array, got:', typeof messages);
+            console.error('Unexpected response format');
             return;
         }
 
         if (messages.length === 0) {
-            displayWelcomeMessage(); // 메시지가 없는 경우 웰컴 메시지 표시
+            displayWelcomeMessage();
         } else {
             displayMessages(messages);
         }
@@ -394,8 +418,9 @@ async function loadSession(sessionId) {
 }
 
 async function connectWebSocket() {
-    if (socket) {
-        await disconnectCurrentSession();
+    if (!currentSessionId) {
+        console.error('No session ID available for WebSocket connection');
+        return;
     }
     
     const wsUrl = `${WS_URL}?userId=${encodeURIComponent(userId)}&sessionId=${currentSessionId}`;
@@ -403,7 +428,7 @@ async function connectWebSocket() {
 
     return new Promise((resolve, reject) => {
         socket.onopen = function() {
-            console.log('WebSocket connected');
+            console.log('WebSocket connected for session:', currentSessionId);
             resolve();
         };
 
@@ -494,26 +519,12 @@ async function createAndConnectNewSession(initialMessage) {
                 appendMessage('ai', result.welcomeMessage);
             }
 
-            // WebSocket 연결을 Promise로 감싸서 연결 완료를 보장
-            await new Promise((resolve, reject) => {
-                connectWebSocket().then(() => {
-                    // WebSocket이 실제로 연결될 때까지 대기
-                    const checkConnection = setInterval(() => {
-                        if (socket.readyState === WebSocket.OPEN) {
-                            clearInterval(checkConnection);
-                            resolve();
-                        }
-                    }, 100);
+            // 새 세션은 빈 세션으로 시작
+            isEmptySession = true;
+            updateNewChatButtonState();
 
-                    // 10초 후에도 연결되지 않으면 타임아웃
-                    setTimeout(() => {
-                        clearInterval(checkConnection);
-                        reject(new Error('WebSocket connection timeout'));
-                    }, 10000);
-                });
-            });
+            await connectWebSocket();
 
-            // WebSocket 연결이 완료된 후에 초기 메시지 전송
             if (initialMessage) {
                 sendMessageToCurrentSession(initialMessage);
             }
@@ -522,13 +533,12 @@ async function createAndConnectNewSession(initialMessage) {
         }
     } catch (error) {
         console.error('Error creating new session:', error);
-        enableInput(); // 에러 발생 시 입력 활성화
+        enableInput();
     }
 }
 
 // 현재 세션에 메시지 전송
 function sendMessageToCurrentSession(message) {
-    // WebSocket 상태 확인
     if (!socket || socket.readyState !== WebSocket.OPEN) {
         console.error('WebSocket is not connected');
         return;
@@ -536,6 +546,11 @@ function sendMessageToCurrentSession(message) {
 
     appendMessage('user', message);
     console.log('appending message: ', message);
+    
+    // 메시지를 보내면 더 이상 빈 세션이 아님
+    isEmptySession = false;
+    updateNewChatButtonState();
+    
     const payload = {
         action: 'sendMessage',
         message: message,
@@ -608,15 +623,53 @@ function updateSessionName(newName) {
 }
 
 async function startNewChat() {
-    // 이전 세션이 있었다면 연결 해제 처리
+    if (socket) {
+        socket.close();
+    }
+    
     if (currentSessionId) {
         await disconnectCurrentSession();
     }
 
     currentSessionId = null;
-    document.getElementById('chatBox').innerHTML = '';
-    displayWelcomeMessage();
-    await createAndConnectNewSession('');
+    
+    // 임시 웰컴 메시지에 특별한 클래스 추가
+    document.getElementById('chatBox').innerHTML = 
+        '<div class="message ai-message temporary-welcome"><div class="message-content">어떤 이야기를 하고 싶나요?</div></div>';
+    
+    try {
+        const response = await fetch(`${API_URL}/sessions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ userId: userId })
+        });
+        const result = await response.json();
+        
+        if (response.ok) {
+            currentSessionId = result.sessionId;
+            await fetchSessions();
+
+            if (result.welcomeMessage) {
+                // 임시 웰컴 메시지 제거 후 실제 메시지로 교체
+                const tempWelcome = document.querySelector('.temporary-welcome');
+                if (tempWelcome) {
+                    tempWelcome.remove();
+                }
+                appendMessage('ai', result.welcomeMessage);
+            }
+
+            isEmptySession = true;
+            updateNewChatButtonState();
+
+            await connectWebSocket();
+        }
+    } catch (error) {
+        console.error('Error in startNewChat:', error);
+        enableInput();
+    }
 }
 
 function showDeleteModal(sessionId) {

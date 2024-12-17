@@ -132,6 +132,12 @@ button {
   color: #646464;
 }
 
+#newChatButton.disabled,
+#collapsedNewChatBtn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* 새 대화 시작 버튼 아이콘 */
 #newChatButtonIcon {
   display: block;
@@ -626,7 +632,7 @@ button {
     height: 100%;
     overflow: auto;
     background-color: rgba(0,0,0,0.7);
-  }
+  }xr
   
 .modalA-content {
   background-color: #fefefe;
