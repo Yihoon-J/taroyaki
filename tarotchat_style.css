@@ -72,6 +72,7 @@ button {
   height: 40px;
   width: 40px;
   border: 0px;
+  border-radius: 12px;
   background: transparent;
   cursor: pointer;
   transition: 0.3s ease;
@@ -79,16 +80,18 @@ button {
 
 /* 접기 버튼 아이콘 */
 #collapseBtnIcon {
-  width: 40px;
-  height: 40px;
-  background-size: contain;
-  background-repeat: no-repeat;
+  width: 24px;
+  height: 24px;
   background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsidebar%2C+size%3D40%2C+state%3Ddefault.png');
   transition: 0.3s ease;
 }
 
 /* 접기 버튼 호버 */
+#collapseBtn:hover{
+background-color: #ececec;
+}
+
 #collapseBtn:hover #collapsedBtnIcon{
   display: block;
   width: 40px;
@@ -132,6 +135,7 @@ button {
   color: #646464;
 }
 
+/* 임시 상태: 새 대화 시작 버튼 비활성화 */
 #newChatButton.disabled,
 #collapsedNewChatBtn.disabled {
     opacity: 0.5;
@@ -140,12 +144,16 @@ button {
 
 /* 새 대화 시작 버튼 아이콘 */
 #newChatButtonIcon {
-  display: block;
   width: 24px;
   height: 24px;
-  background-size: contain;
+  background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dnew_chat%2C+size%3D40%2C+state%3Ddefault.png');
   background-repeat: no-repeat;
+  transition: 0.3s ease;
+}
+
+#newChatButton:hover #newChatButtonIcon{
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dnew_chat%2C+size%3D40%2C+state%3Dhover.png');
 }
 
 /* 세션 목록 박스 */
@@ -166,7 +174,7 @@ button {
   align-items: center;
   cursor: pointer; 
   width: 279px;
-  height: 27px;
+  min-height: 27px;
   overflow: hidden;
   padding: 14px 24px;
   text-align: left;
@@ -210,8 +218,8 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   opacity: 1;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dexit%2C+size%3D20%2C+state%3Ddefault.png');
   background-size: contain;
@@ -221,13 +229,7 @@ button {
 
 /* 삭제 아이콘 직접 마우스오버 시 아이콘 */
 .delete-button:hover {
-  display: block;
-  width: 20px;
-  height: 20px;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dexit%2C+size%3D20%2C+state%3Dhover.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
 }
 
 .session-item:hover .delete-button {
@@ -306,14 +308,14 @@ button {
 
 /* 사이드바 접었을 때 - 펼치기 버튼 아이콘*/
 #expandBtnIcon{
-  width: 20px;
-  height: 20px;
+  width: 21px;
+  height: 18px;
   background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsidebar%2C+size%3D40%2C+state%3Ddefault.png');
 }
 
 /* 사이드바 접었을 때 - 펼치기 버튼 - 호버 */
-#expandBtn.hover #expandBtnIcon{
+#expandBtn:hover #expandBtnIcon{
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsidebar%2C+size%3D40%2C+state%3Dhover.png');
 }
 
@@ -324,16 +326,16 @@ button {
 }
 
 #collapsedNewChatBtnIcon {
-  width: 20px;
-  height: 20px;
+  width: 21px;
+  height: 21px;
   background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dnew_chat%2C+size%3D40%2C+state%3Ddefault.png');
 }
 
 /* 사이드바 접었을 때 - 새 대화 버튼 - 호버 */
-#collapsedNewChatBtn.hover #collapsedNewChatBtnIcon{
-  width: 20px;
-  height: 20px;
+#collapsedNewChatBtn:hover #collapsedNewChatBtnIcon{
+  width: 21px;
+  height: 18px;
   background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dnew_chat%2C+size%3D40%2C+state%3Dhover.png');
 }
@@ -345,16 +347,16 @@ button {
 }
 
 #collapsedSettingsBtnIcon{
-  width: 20px;
-  height: 20px;
+  width: 21px;
+  height: 18px;
   background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsetting%2C+size%3D40%2C+state%3Ddefault.png');
 }
 
 /* 사이드바 접었을 때 - 설정 버튼 - 호버 */
-#collapsedSettingsBtn.hover collapsedSettingsBtnIcon{
-  width: 20px;
-  height: 20px;
+#collapsedSettingsBtn:hover collapsedSettingsBtnIcon{
+  width: 21px;
+  height: 18px;
   background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsetting%2C+size%3D40%2C+state%3Dhover.png');
 }
@@ -437,7 +439,6 @@ button {
   position: absolute; 
   top: 20px;
   right: 20px;
-  background: #5D5671;
   color: #FFFFFF;
   height: 36px;
   width: 36px;
@@ -632,7 +633,7 @@ button {
     height: 100%;
     overflow: auto;
     background-color: rgba(0,0,0,0.7);
-  }xr
+}
   
 .modalA-content {
   background-color: #fefefe;
@@ -647,8 +648,8 @@ button {
   }
 
 #settingsclose{
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   justify-content: center;
   align-items: center;

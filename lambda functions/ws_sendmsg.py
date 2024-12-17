@@ -1,8 +1,10 @@
 import json
 import boto3
 from datetime import datetime
-from langchain_aws import ChatBedrock
-from langchain.schema import HumanMessage, AIMessage, SystemMessage
+
+# Bedrock Runtime 클라이언트 초기화
+bedrock_runtime = boto3.client('bedrock-runtime')
+bedrock_agent_runtime = boto3.client('bedrock-agent-runtime')
 
 gateway_client = boto3.client('apigatewaymanagementapi', endpoint_url='https://tt0ikgb3sd.execute-api.us-east-1.amazonaws.com/production')
 dynamodb = boto3.resource('dynamodb')
@@ -17,46 +19,28 @@ def stream_to_connection(connection_id, content):
     except Exception as e:
         print(f"Error streaming: {str(e)}")
 
-def parse_messages(history_data):
-    messages = []
-    for item in json.loads(history_data):
-        if item['type'] == 'human':
-            messages.append(HumanMessage(content=item['content']))
-        elif item['type'] == 'ai':
-            messages.append(AIMessage(content=item['content']))
-    return messages
-
-def extract_content(response):
-    print(f"extract_content input: {response}")
-    if isinstance(response, str):
-        return response
-    elif isinstance(response, AIMessage):
-        return response.content
-    elif isinstance(response, dict):
-        if 'content' in response:
-            return response['content']
-        elif 'response' in response:
-            return response['response']
-    elif isinstance(response, tuple):
-        if len(response) > 1 and response[0] == 'content':
-            return response[1]
-    print(f"extract_content output: Unable to extract content")
-    return ""
-
 def generate_session_name(user_message):
-    model=ChatBedrock(
-        model_id="anthropic.claude-3-haiku-20240307-v1:0",
-        model_kwargs={
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1000,
-            "temperature": 0.1
-        }
-    )
-    prompt = f"사용자의 다음 고민을 바탕으로 30자 이내의 세션 이름을 생성해 줘. 자연스러운 제목이 되도록 '세션'이라는 표현은 쓰지 말아 줘: {user_message}"
-    response = model.invoke([HumanMessage(content=prompt)])
-    print('Session Name Suggested: ', response)
-    session_name=response.content.strip()
-    return session_name
+    try:
+        response = bedrock_runtime.invoke_model(
+            modelId='anthropic.claude-3-haiku-20240307-v1:0',
+            body=json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 1000,
+                "temperature": 0.1,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": f"사용자의 다음 고민을 바탕으로 30자 이내의 세션 이름을 생성해 줘. 자연스러운 제목이 되도록 '세션'이라는 표현은 쓰지 말아 줘: {user_message}"
+                    }
+                ]
+            })
+        )
+        response_body = json.loads(response['body'].read())
+        session_name = response_body['content'][0]['text'].strip()
+        return session_name
+    except Exception as e:
+        print(f"Error generating session name: {str(e)}")
+        return "새 대화"
 
 def update_session_name(user_id, session_id, new_name):
     response = table.update_item(
@@ -70,7 +54,7 @@ def send_session_name_update(connection_id, new_name):
         ConnectionId=connection_id,
         Data=json.dumps({"type": "session_name_update", "name": new_name}).encode('utf-8')
     )
-    
+
 def lambda_handler(event, context):
     connection_id = event['requestContext']['connectionId']
     body = json.loads(event['body'])
@@ -79,6 +63,7 @@ def lambda_handler(event, context):
     session_id = body['sessionId']
 
     try:
+        # DynamoDB에서 세션 정보 가져오기
         response = table.get_item(Key={'UserId': user_id, 'SessionId': session_id})
         
         if 'Item' not in response:
@@ -86,72 +71,48 @@ def lambda_handler(event, context):
 
         existing_item = response['Item']
         history_data = existing_item.get('History', '[]')
-        existing_messages = parse_messages(history_data)
+        existing_messages = json.loads(history_data)
 
-        # 세션 이름 생성
-        if len(existing_messages)==1 and user_message != "":
-            new_session_name=generate_session_name(user_message)
+        # 첫 메시지인 경우 세션 이름 생성
+        if len(existing_messages) == 1 and user_message != "":
+            new_session_name = generate_session_name(user_message)
             update_session_name(user_id, session_id, new_session_name)
             send_session_name_update(connection_id, new_session_name)
-        
-        
-        model = ChatBedrock(
-            model_id="anthropic.claude-3-haiku-20240307-v1:0",
-            streaming=True,
-            model_kwargs={
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 3000,
-                "temperature": 0.1
-            }
+
+        # Bedrock Agent 호출
+        agent_response = bedrock_agent_runtime.invoke_agent(
+            agentId='IYS2YDOSEA',  # Bedrock Agent ID
+            agentAliasId='FMMAFGX1SC',  # Agent Alias ID
+            sessionId=session_id,
+            inputText=user_message
         )
 
-        # 시스템 메시지 추가
-        messages = [SystemMessage(content="You are a helpful assistant.")]
-        
-        # 사용자 메시지 추가 (빈 메시지로 시작)
-        messages.append(HumanMessage(content="."))
-
-        # 기존 메시지 추가 (AI 메시지부터 시작)
-        messages.extend(existing_messages)
-
-        # 새 사용자 메시지 추가
-        messages.append(HumanMessage(content=user_message))
-
-        response = model.invoke(messages)
-
+        # 응답 스트리밍
         full_response = ""
-        if hasattr(response, '__iter__'):
-            for chunk in response:
-                print(f"Response chunk: {chunk}")
-                content = extract_content(chunk)
-                print(f"Extracted content from chunk: {content}")
-                if content and isinstance(content, str):
-                    stream_to_connection(connection_id, content)
-                    full_response += content
-        else:
-            full_response = extract_content(response)
-            stream_to_connection(connection_id, full_response)
+        for event in agent_response['completion']:
+            if 'chunk' in event:
+                chunk = event['chunk']['bytes'].decode('utf-8')
+                stream_to_connection(connection_id, chunk)
+                full_response += chunk
 
         current_time = datetime.now().isoformat()
         
         # 히스토리 업데이트
-        existing_history = json.loads(history_data)
-        existing_history.append({"type": "human", "content": user_message})
-        existing_history.append({"type": "ai", "content": full_response})
-        updated_history = json.dumps(existing_history)
+        existing_messages.append({"type": "human", "content": user_message})
+        existing_messages.append({"type": "ai", "content": full_response})
+        updated_history = json.dumps(existing_messages)
 
-        update_expression = "SET History = :history, LastUpdatedAt = :last_updated_at"
-        expression_attribute_values = {
-            ':history': updated_history,
-            ':last_updated_at': current_time
-        }
-
+        # DynamoDB 업데이트
         table.update_item(
             Key={'UserId': user_id, 'SessionId': session_id},
-            UpdateExpression=update_expression,
-            ExpressionAttributeValues=expression_attribute_values
+            UpdateExpression="SET History = :history, LastUpdatedAt = :last_updated_at",
+            ExpressionAttributeValues={
+                ':history': updated_history,
+                ':last_updated_at': current_time
+            }
         )
 
+        # 완료 메시지 전송
         gateway_client.post_to_connection(
             ConnectionId=connection_id,
             Data=json.dumps({"type": "end"}).encode('utf-8')

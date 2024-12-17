@@ -326,10 +326,30 @@ async function disconnectCurrentSession() {
     }
 }
 
+function setRandomProfileButtonColor() {
+    const colors = [
+        '#715D56',
+        '#71565D',
+        '#5D5671',
+        '#5D7156',
+        '#565D71',
+        '#56715D'
+    ];
+    
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const profileButton = document.getElementById('ProfileBtn');
+    
+    if (profileButton) {
+        profileButton.style.backgroundColor = randomColor;
+    }
+}
+
+
 function updateProfileButton(userInfo) {
     const profileButton = document.getElementById('ProfileBtn');
     if (profileButton && userInfo.name) {
         profileButton.textContent = userInfo.name.charAt(0).toUpperCase();
+        setRandomProfileButtonColor();
     }
 }
 
@@ -710,6 +730,36 @@ function closeDeleteModal() {
     sessionToDelete = null;
 }
 
+function initializeProfileModal() {
+    const profileModal = document.getElementById("profileModal");
+    const profileBtn = document.getElementById("ProfileBtn");
+    
+    if (profileModal && profileBtn) {
+        profileBtn.onclick = function() {
+            // 현재 모달의 표시 상태 확인
+            const isModalVisible = profileModal.style.display === "block";
+            // 현재 상태의 반대로 토글
+            profileModal.style.display = isModalVisible ? "none" : "block";
+        }
+    }
+
+    // 기존의 window onclick 핸들러 수정
+    window.onclick = function(event) {
+        const settingsModal = document.getElementById("settingsModal");
+        const profileModal = document.getElementById("profileModal");
+        const profileBtn = document.getElementById("ProfileBtn");
+
+        // ProfileBtn이나 profileModal의 내부를 클릭한 경우가 아닐 때만 모달을 닫음
+        if (!profileBtn.contains(event.target) && !profileModal.querySelector('.modalB-content').contains(event.target)) {
+            profileModal.style.display = "none";
+        }
+        
+        if (event.target == settingsModal) {
+            settingsModal.style.display = "none";
+        }
+    }
+}
+
 async function logout() {
     try {
         if (!COGNITO_DOMAIN || !CLIENT_ID || !REDIRECT_URI) {
@@ -773,6 +823,9 @@ function initializeEventListeners() {
 
         sendButton.addEventListener('click', sendMessage);
     }
+    
+    //Profile Modal
+    initializeProfileModal();
 
     // Settings Modal
     const settingsModal = document.getElementById('settings');
@@ -797,16 +850,6 @@ function initializeEventListeners() {
             if (settingsModal) settingsModal.style.display = 'none';
         });
     }); 
-
-    // Profile Modal
-    const profileModal = document.getElementById("profileModal");
-    const profileBtn = document.getElementById("ProfileBtn");
-    
-    if (profileModal && profileBtn) {
-        profileBtn.onclick = function() {
-            profileModal.style.display = "block";
-        }
-    }
 
     // Delete Session Modal
     const deleteModal = document.getElementById('deleteSessionModal');
