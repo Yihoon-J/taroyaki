@@ -629,12 +629,15 @@ button {
   }
   
 .modalA-content {
-    background-color: #fefefe;
-    margin: 15% auto;
-    padding: 52px;
-    width: 486px;
-    height: 446px;
-    border-radius: 16px;
+  background-color: #fefefe;
+  margin: 15% auto;
+  padding: 52px;
+  width: 486px;
+  height: 446px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   }
 
 #settingsclose{
@@ -659,8 +662,17 @@ button {
 }
 
 #modalAtitle{
-  size: 28px;
-  margin-bottom: 20px;
+  font-size: 24px;
+  padding-top: 0px;
+  padding-bottom: 27px;
+  font-weight: 600;
+}
+
+#settingsbody{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
 }
 .settingsbodytitle{
   color: #222222;
@@ -672,8 +684,12 @@ button {
   color: #7d7d7d;
   background-color: transparent;
   border: 0px;
-  size: 17px;
+  font-size: 17px;
   margin: 12px 0px;
+}
+
+.emptyspace{
+  height: 30px;
 }
 /* 프로필 모달 전체 */
 .modalB {

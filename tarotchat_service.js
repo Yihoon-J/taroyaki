@@ -53,8 +53,8 @@ function redirectToLogin() {
         `response_type=code&` +
         `scope=email+openid+profile&` +
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-        `prompt=login&` +  // 강제로 로그인 화면 표시
-        `max_age=0`;       // 이전 세션 무시
+        `prompt=login&` +
+        `max_age=0`;
     
     window.location.href = loginUrl;
 }
@@ -276,6 +276,48 @@ function displaySessions(sessions) {
     });
 }
 
+async function disconnectCurrentSession() {
+    if (socket) {
+        socket.close();
+        
+        try {
+            // 1. 세션의 대화 내역 가져오기
+            const response = await fetch(`${API_URL}/sessions/${currentSessionId}?userId=${userId}`, {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch session data');
+            }
+            
+            const messages = await response.json();
+            
+            // 2. 빈 대화 확인 (메시지가 하나이고 초기 AI 메시지만 있는 경우)
+            if (Array.isArray(messages) && 
+                messages.length === 1 && 
+                messages[0].type === 'ai' && 
+                messages[0].content === "어떤 이야기를 하고 싶나요?") {
+                    
+                // 3. 세션 삭제
+                console.log('Empty session deleted.')
+                const deleteResponse = await fetch(`${API_URL}/sessions/${currentSessionId}?userId=${userId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                if (!deleteResponse.ok) {
+                    throw new Error('Failed to delete empty session');
+                }
+                
+                // 4. 세션 목록 새로고침
+                await fetchSessions();
+            }
+        } catch (error) {
+            console.error('Error handling session disconnect:', error);
+        }
+    }
+}
+
 function updateProfileButton(userInfo) {
     const profileButton = document.getElementById('ProfileBtn');
     if (profileButton && userInfo.name) {
@@ -305,6 +347,16 @@ function extractContent(contentData) {
 }
 
 async function loadSession(sessionId) {
+    // 같은 세션을 다시 클릭한 경우는 아무 동작도 하지 않음
+    if (currentSessionId === sessionId) {
+        return;
+    }
+
+    // 이전 세션이 있었다면 연결 해제 처리
+    if (currentSessionId && currentSessionId !== sessionId) {
+        await disconnectCurrentSession();
+    }
+
     // Remove 'active' class from previously active session
     const previousActive = document.querySelector('.session-item.active');
     if (previousActive) {
@@ -343,7 +395,7 @@ async function loadSession(sessionId) {
 
 async function connectWebSocket() {
     if (socket) {
-        socket.close();
+        await disconnectCurrentSession();
     }
     
     const wsUrl = `${WS_URL}?userId=${encodeURIComponent(userId)}&sessionId=${currentSessionId}`;
@@ -556,6 +608,11 @@ function updateSessionName(newName) {
 }
 
 async function startNewChat() {
+    // 이전 세션이 있었다면 연결 해제 처리
+    if (currentSessionId) {
+        await disconnectCurrentSession();
+    }
+
     currentSessionId = null;
     document.getElementById('chatBox').innerHTML = '';
     displayWelcomeMessage();
