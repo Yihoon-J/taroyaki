@@ -14,6 +14,8 @@ button {
 #sidebar {
   display: flex;
   width: 367px;
+  height: 100vh;
+  position: relative;
   flex-direction: column;
   align-items: center;
   background-color: #F6F6F6; 
@@ -165,6 +167,15 @@ background-color: #ececec;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 8px 0;
+  /* max height 계산 
+     - 상단 여백(10px)
+     - TitleBox 높이(80px + 32px 마진)
+     - 구분선 높이(1px)
+     - newChatButton 높이(55px + 32px 마진)
+     - 구분선 높이(1px)
+     - SettingsButton 높이(55px + 32px 마진)
+     - 하단 여백(10px) */
+     max-height: calc(100vh - 308px);
 }
 
 /* 세션 목록 내 개별 세션 */
@@ -255,6 +266,7 @@ background-color: #ececec;
   text-align: left;
   color: #7d7d7d;
   transition: background-color 0.3s ease;
+  z-index: 1;
 }
 
 /* 설정 버튼 호버 시 */
@@ -386,6 +398,7 @@ background-color: #ececec;
   background-color: #FFFFFF; 
   padding: 40px 20px; 
   overflow-y: auto;
+  overflow-x: hidden;
   border-right: 1px solid #E0E0E0;
 }
 
@@ -603,6 +616,19 @@ background-color: #ececec;
   left: 70px;
   margin-top: 10px;
   margin-bottom: -20px; /* 다음 메시지와의 간격 조정 */
+}
+
+.typing-indicator {
+  width: 120px;
+  height: 60px;
+  background-color: #eeeeee !important; /* ai-message의 배경색과 동일하게 */
+  padding: 10px !important;
+}
+
+.typing-indicator.visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #messageInput {

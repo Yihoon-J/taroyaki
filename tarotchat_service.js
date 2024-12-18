@@ -4,6 +4,7 @@ let currentSessionId;
 let sessionToDelete = null;
 let isWaitingForResponse = false;
 let isInputFocused = false;
+let typingAnimation = null;
 let accessToken = null;
 let tokenExpiryTime = null;
 let refreshTimer = null;
@@ -437,6 +438,7 @@ async function loadSession(sessionId) {
     }
 }
 
+// 프로덕션 용
 async function connectWebSocket() {
     if (!currentSessionId) {
         console.error('No session ID available for WebSocket connection');
@@ -468,7 +470,43 @@ async function connectWebSocket() {
     });
 }
 
+// 테스트용: 세션 연결만 되면 애니메이션 항상 표시
+// async function connectWebSocket() {
+//     if (!currentSessionId) {
+//         console.error('No session ID available for WebSocket connection');
+//         return;
+//     }
+    
+//     const wsUrl = `${WS_URL}?userId=${encodeURIComponent(userId)}&sessionId=${currentSessionId}`;
+//     socket = new WebSocket(wsUrl);
 
+//     return new Promise((resolve, reject) => {
+//         socket.onopen = function() {
+//             console.log('WebSocket connected for session:', currentSessionId);
+//             // WebSocket 연결 성공 시 로딩 애니메이션 표시
+//             showTypingIndicator();
+//             resolve();
+//         };
+
+//         socket.onmessage = function(event) {
+//             const data = JSON.parse(event.data);
+//             handleIncomingMessage(data);
+//         };
+
+//         socket.onclose = function(event) {
+//             console.log('WebSocket closed:', event.code, event.reason);
+//             // WebSocket 연결 종료 시 애니메이션 제거
+//             hideTypingIndicator();
+//         };
+
+//         socket.onerror = function(error) {
+//             console.error('WebSocket error:', error);
+//             // 에러 발생 시 애니메이션 제거
+//             hideTypingIndicator();
+//             reject(error);
+//         };
+//     });
+// }
 function disableInput() {
     document.getElementById('messageInput').disabled = true;
     document.getElementById('SendButton').disabled = true;
@@ -507,6 +545,7 @@ async function sendMessage() {
     const message = messageInput.value.trim();
     if (message && !isWaitingForResponse) {
         disableInput();
+        showTypingIndicator();
         if (!currentSessionId) {
             await createAndConnectNewSession(message);
         } else {
@@ -605,29 +644,70 @@ function handleIncomingMessage(data) {
     if (data.type === 'stream') {
         const content = extractContent(data.content);
         const lastMessage = document.querySelector('.message:first-child');
-        const spacer = document.querySelector('.message-spacer');
         
         if (lastMessage && lastMessage.classList.contains('ai-message')) {
             lastMessage.querySelector('.message-content').innerHTML += content.replace(/\n/g, '<br>');
         } else {
+            hideTypingIndicator();
             appendMessage('ai', content);
         }
 
-        // AI 메시지가 시작되면 spacer 제거
-        if (spacer) {
-            spacer.remove();
-        }
 
         scrollToBottom();
     } else if (data.type === 'end') {
+        hideTypingIndicator();
         console.log('Stream ended');
         scrollToBottom();
         enableInput();
     } else if (data.type === 'error') {
+        hideTypingIndicator();
         console.error('Error:', data.message);
         enableInput();
     } else if (data.type === 'session_name_update') {
         updateSessionName(data.name);
+    }
+}
+
+function showTypingIndicator() {
+    // 기존 인디케이터가 있다면 제거
+    const existingIndicator = document.querySelector('.typing-indicator');
+    if (existingIndicator) {
+        existingIndicator.remove();
+    }
+
+    const chatBox = document.getElementById('chatBox');
+    const indicatorContainer = document.createElement('div');
+    indicatorContainer.className = 'message ai-message typing-indicator visible';
+    
+    // 첫 번째 메시지(가장 최근 메시지) 찾기
+    const firstMessage = chatBox.firstChild;
+    
+    // 첫 번째 메시지 이전에 인디케이터 삽입
+    if (firstMessage) {
+        chatBox.insertBefore(indicatorContainer, firstMessage);
+    } else {
+        chatBox.appendChild(indicatorContainer);
+    }
+
+    // Lottie 애니메이션 로드
+    typingAnimation = lottie.loadAnimation({
+        container: indicatorContainer,
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        path: 'https://lottie.host/1ec9aa39-81ba-4f4b-919b-e71c73e3a5c6/fBepxZl9Ja.json'
+    });
+}
+
+function hideTypingIndicator() {
+    if (typingAnimation) {
+        typingAnimation.destroy();
+        typingAnimation = null;
+    }
+    
+    const indicator = document.querySelector('.typing-indicator');
+    if (indicator) {
+        indicator.remove();
     }
 }
 
