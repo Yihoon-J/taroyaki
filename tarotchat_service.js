@@ -757,6 +757,10 @@ function initializeProfileModal() {
         if (event.target == settingsModal) {
             settingsModal.style.display = "none";
         }
+
+        if (event.target == deleteModal) {
+            closeDeleteModal();
+        }
     }
 }
 
@@ -870,15 +874,17 @@ function initializeEventListeners() {
         const profileBtn = document.getElementById("ProfileBtn");
         const deleteModal = document.getElementById('deleteSessionModal');
 
+         // settings 모달이 클릭되었고, 클릭된 요소가 모달 콘텐츠가 아닌 경우에만 닫기
+        if (event.target === settingsModal) {
+            settingsModal.style.display = "none";
+        }
+        
         // ProfileBtn이나 profileModal의 내부를 클릭한 경우가 아닐 때만 모달을 닫음
         if (!profileBtn.contains(event.target) && !profileModal.querySelector('.modalB-content').contains(event.target)) {
             profileModal.style.display = "none";
         }
-        
-        if (event.target == settingsModal) {
-            settingsModal.style.display = "none";
-        }
-        if (event.target == deleteModal) {
+
+        if (event.target === deleteModal) {
             closeDeleteModal();
         }
     }
