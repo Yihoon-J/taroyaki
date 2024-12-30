@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tarot Chat</title>
+    <title>TAROYAKKI</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
     <link rel="stylesheet" href="tarotchat_style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
@@ -21,7 +21,7 @@
     <div id="mainContent">
         <div id="sidebar" class="expanded">
             <div id="TitleBox">
-                <h1 id="MainTitle">AI TAROT</h1>
+                <h1 id="MainTitle">TAROYAKKI</h1>
                 <button id="collapseBtn">
                     <span id="collapseBtnIcon"></span>
                 </button>
@@ -89,15 +89,15 @@
             <div class="modalC-content">
             <span class="close">&times;</span>
             <h2>세션 삭제 확인</h2>
-            <p>정말로 이 세션을 삭제하시겠습니까?</p>
-            <button id="confirmDelete">삭제</button>
+            <p>대화를 삭제할까요?</p>
             <button id="cancelDelete">취소</button>
+            <button id="confirmDelete">삭제하기</button>
             </div>
         </div>
         <div id="serviceguide">
-            <div id="GuideTitle">타로 에이전트 질문 가이드</div>
+            <div id="GuideTitle">타로야끼에게 물어보는 방법</div>
             <div id="Guide1">
-                <div id="guide1title">내가 현재 처해 있는 상황과 고민을 자세히 작성할수록 리딩이 정확해집니다.</div>
+                <div id="guide1title">내가 현재 처해 있는 상황과 고민을 자세히 작성할수록 리딩이 정확해져요.</div>
                 <div id="guide1p1">
                     (X)연애운을 알려줘<br>(X)취직할 수 있을까?
                 </div>
@@ -107,7 +107,7 @@
                 </ul>
             </div>
             <div id="Guide2">
-                <div id="guide2title">추가적인 정보를 알고 싶다면 '조언'이나 '추가질문'을 질문해보세요.</div>
+                <div id="guide2title">추가적인 정보를 알고 싶다면 '조언'이나 '추가질문'을 질문해보아요.</div>
                 <div id="guide2p1">
                     어쩌구<br>저쩌구
                 </div>
@@ -117,9 +117,9 @@
                 </ul>
             </div>
             <div id="Guide3">
-                <div id="guide3title">대화가 너무 길어지면 답변이 부정확해질 수 있습니다.</div>
+                <div id="guide3title">대화가 너무 길어지면 답변이 부정확해질 수 있어요.</div>
                 <div id="guide3p1">
-                    대화가 길면 에이전트는 초반 대화를 잘 기억하지 못해요.<br>최소한의 대화로 자신의 상황에 대해 최대한 많은 정보를 제공해 주세요.
+                    대화가 길면 타로야끼는 초반 대화를 잘 기억하지 못해요.<br>최소한의 대화로 자신의 상황에 대해 최대한 많은 정보를 제공해 주세요.
                 </div>
             </div>
         </div>
@@ -133,7 +133,7 @@
                 </button>
             </div>
             <div id="warningmsg">
-                <p>Tarot AI는 아직 학습중입니다. 답변에서 실수가 있을 수 있습니다.</p>
+                <p>타로야끼는 아직 익히는 중이에요. 답변에서 실수가 있을 수 있어요.</p>
             </div>
         </div>
     </div>
@@ -144,6 +144,7 @@
           }
         }
     </script>
+    <script src="/config.js"></script>
     <script type="module" src="tarotchat_service.js"></script>
     <script type="module">
         import { initializePage, initializeEventListeners, startNewChat, sendMessage, logout } from './tarotchat_service.js';

@@ -5,25 +5,44 @@ let sessionToDelete = null;
 let isWaitingForResponse = false;
 let isInputFocused = false;
 let typingAnimation = null;
+let accessToken = null;
+let tokenExpiryTime = null;
 let refreshTimer = null;
 let isEmptySession = false;
 
-const API_URL = window.ENV.API_URL;
-const WS_URL = window.ENV.WS_URL;
-const REDIRECT_URI = window.ENV.REDIRECT_URI;
-const COGNITO_DOMAIN = window.ENV.COGNITO_DOMAIN;
-const CLIENT_ID = window.ENV.CLIENT_ID;
-const FLASK_URL = window.ENV.FLASK_URL;
+let API_URL, WS_URL, CONFIG_URL, REDIRECT_URI, COGNITO_DOMAIN, CLIENT_ID, FLASK_URL;
 
-async function validateConfig() {
-    const requiredFields = ['API_URL', 'WS_URL', 'REDIRECT_URI', 'COGNITO_DOMAIN', 'CLIENT_ID', 'FLASK_URL'];
-    const missingFields = requiredFields.filter(field => !window.ENV[field]);
-    
-    if (missingFields.length > 0) {
-        throw new Error(`Missing required configuration fields: ${missingFields.join(', ')}`);
+async function fetchConfig() {
+    try {
+        const response = await fetch('http://localhost:3002/api/config', {
+            credentials: 'include'
+        });
+        if (!response.ok) throw new Error('Failed to fetch configuration');
+
+        const config = await response.json();
+
+        // 설정값 할당
+        API_URL = config.apiUrl;
+        WS_URL = config.wsUrl;
+        REDIRECT_URI = config.redUri;
+        CONFIG_URL = config.confURL;
+        COGNITO_DOMAIN = config.cogDom;
+        CLIENT_ID = config.cliId;
+        FLASK_URL = config.flaUrl;
+
+        // 필수 설정값 검증
+        const requiredFields = ['apiUrl', 'wsUrl', 'redUri', 'cogDom', 'cliId'];
+        const missingFields = requiredFields.filter(field => !config[field]);
+        
+        if (missingFields.length > 0) {
+            throw new Error(`Missing required configuration fields: ${missingFields.join(', ')}`);
+        }
+        
+        console.log('Configuration loaded successfully');
+    } catch (error) {
+        console.error('Error fetching config:', error);
+        throw error;
     }
-    
-    return true;
 }
 
 function redirectToLogin() {
@@ -46,8 +65,8 @@ function redirectToLogin() {
 
 async function initializePage() {
     try {
-        // 1. 설정 검증
-        await validateConfig();
+        // 1. 설정 로드
+        await fetchConfig();
         
         // 2. URL의 인증 코드 확인
         const code = getAuthorizationCode();
@@ -76,8 +95,10 @@ async function initializePage() {
                 setupTokenRefresh(3600);
                 return;
             } catch (error) {
-                console.error('Failed to initialize page:', error);
-                document.getElementById('userDetails').textContent = 'Failed to load application configuration';
+                // 세션이 유효하지 않은 경우 로그인 페이지로 리다이렉션
+                console.log('No valid session found, redirecting to login');
+                redirectToLogin();
+                return;
             }
         }
 
@@ -1022,6 +1043,7 @@ export {
 
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', async () => {
+    await fetchConfig();
     initializePage();
     initializeEventListeners();
 });

@@ -11,13 +11,17 @@ import os
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'])
+CORS(app, 
+     supports_credentials=True, 
+     origins=['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+     allow_headers=['Content-Type'],
+     expose_headers=['Set-Cookie'])
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_DOMAIN='localhost',
+    SESSION_COOKIE_DOMAIN=None,
     SESSION_COOKIE_PATH='/',
     PERMANENT_SESSION_LIFETIME=timedelta(days=5)
 )
@@ -172,8 +176,18 @@ def logout():
     response = jsonify({'success': True})
     
     # 세션 쿠키 명시적 삭제
-    response.set_cookie('session', '', expires=0)
-    
+    response.set_cookie('session', '', 
+                       expires=0, 
+                       secure=True,
+                       httponly=True,
+                       samesite='Lax',
+                       path='/')
+    # XSRF-TOKEN도 명시적으로 삭제
+    response.set_cookie('XSRF-TOKEN', '', 
+                       expires=0, 
+                       secure=True,
+                       samesite='Lax',
+                       path='/')
     return response
 
 if __name__ == '__main__':
