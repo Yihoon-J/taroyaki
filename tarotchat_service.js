@@ -51,13 +51,18 @@ async function initializePage() {
         
         // 2. URL의 인증 코드 확인
         const code = getAuthorizationCode();
+        console.log('Authorization code:', code ? 'Present' : 'Not present');
         
         // 인증 코드가 없는 경우 기존 세션 검증 시도
         if (!code) {
             try {
+                console.log('Attempting to fetch user info...');
                 const response = await fetch(`${FLASK_URL}/api/user-info`, {
                     credentials: 'include'
                 });
+                console.log('User info response:', response);
+                console.log('Response headers:', response.headers);
+                console.log('Cookies:', document.cookie);
                 
                 // 401 Unauthorized가 아닌 경우에만 세션 유효로 판단
                 if (!response.ok) {
@@ -84,12 +89,19 @@ async function initializePage() {
         // 인증 코드가 있는 경우의 처리 (기존 코드)
         try {
             const tokenResponse = await exchangeCodeForTokens(code);
+            console.log('Token exchange response:', tokenResponse);
+           
             if (tokenResponse.success) {
+                console.log('Token exchange successful, setting up refresh...');
                 setupTokenRefresh(tokenResponse.expires_in);
                 accessToken = tokenResponse.access_token;
                 
+                console.log('Fetching user info...');
                 const userInfo = await fetchUserInfo();
+                console.log('User info received:', userInfo);
+                
                 if (userInfo) {
+                    console.log('Updating user info and fetching sessions...');
                     userId = userInfo.sub;
                     updateUserInfo(userInfo);
                     fetchSessions();
@@ -99,9 +111,13 @@ async function initializePage() {
                     window.history.replaceState({}, document.title, window.location.pathname);
                     return;
                 }
+            } else {
+                console.log('Token exchange failed:', tokenResponse);
             }
+
         } catch (error) {
             console.error('Authentication error:', error);
+            console.error('Error stack:', error.stack);
             redirectToLogin();
         }
         
@@ -166,6 +182,7 @@ function getAuthorizationCode() {
 
 async function exchangeCodeForTokens(code) {
     try {
+        console.log('Exchanging code for tokens...');
         const response = await fetch(`${FLASK_URL}/auth/token`, {
             method: 'POST',
             headers: {
@@ -175,13 +192,18 @@ async function exchangeCodeForTokens(code) {
             body: JSON.stringify({ code })
         });
         
+        console.log('Token exchange raw response:', response);
+
         if (!response.ok) {
             const errorData = await response.json();
             console.error('Token exchange error:', errorData);
             throw new Error(errorData.error || 'Token exchange failed');
         }
         
-        return await response.json();
+        const data = await response.json();
+        console.log('Token exchange parsed response:', data);
+        return data;
+
     } catch (error) {
         console.error('Token exchange error:', error);
         throw error;
@@ -308,30 +330,10 @@ async function disconnectCurrentSession() {
     }
 }
 
-function setRandomProfileButtonColor() {
-    const colors = [
-        '#715D56',
-        '#71565D',
-        '#5D5671',
-        '#5D7156',
-        '#565D71',
-        '#56715D'
-    ];
-    
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    const profileButton = document.getElementById('ProfileBtn');
-    
-    if (profileButton) {
-        profileButton.style.backgroundColor = randomColor;
-    }
-}
-
-
 function updateProfileButton(userInfo) {
     const profileButton = document.getElementById('ProfileBtn');
     if (profileButton && userInfo.name) {
         profileButton.textContent = userInfo.name.charAt(0).toUpperCase();
-        setRandomProfileButtonColor();
     }
 }
 

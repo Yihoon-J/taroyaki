@@ -32,7 +32,8 @@ def create_auth_response(response, session_id):
             'Access-Control-Allow-Origin': 'https://d256c0vgw8wwge.cloudfront.net',
             'Access-Control-Allow-Credentials': 'true',
             'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Cookie',
+            'Access-Control-Expose-Headers': 'Set-Cookie',
             'Set-Cookie': f'sessionId={session_id}; Secure; HttpOnly; SameSite=Lax; Path=/'
         },
         'body': json.dumps(response)

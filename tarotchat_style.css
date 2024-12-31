@@ -59,8 +59,8 @@ button {
 /* 서비스 메인 타이틀 */
 #MainTitle{
   height: 40px;
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 28px;
+  font-weight: 900;
   text-align: left;
   padding-left: 26px;
   padding-right: 26px;
@@ -140,7 +140,6 @@ background-color: #ececec;
 /* 임시 상태: 새 대화 시작 버튼 비활성화 */
 #newChatButton.disabled,
 #collapsedNewChatBtn.disabled {
-    opacity: 0.5;
     cursor: not-allowed;
 }
 
@@ -393,23 +392,43 @@ background-color: #ececec;
 #serviceguide {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: left;
   width: 278px; 
   background-color: #FFFFFF; 
   padding: 40px 20px; 
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: none;
   border-right: 1px solid #E0E0E0;
 }
 
-/* 타로 에이전트 질문 가이드 */
+#scrollbar::-webkit-scrollbar{
+  display:none;
+}
+
+/* "질문 가이드" */
 #GuideTitle{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   height: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 26px;
+}
+
+#GuideTitleText{
   line-height: 132%;
   font-style: bold;
   font-size: 14px;
   color: #222222;
-  margin-bottom: 26px;
+}
+
+#GuideTitleIcon{
+  width: 20px;
+  height: 20px;
+  background-position: center;
+  background-image:url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dguide%2C+size%3D24%2C+state%3Ddefault.png')
 }
 
 /* 질문 가이드 박스 */
@@ -469,6 +488,7 @@ background-color: #ececec;
   top: 20px;
   right: 20px;
   color: #FFFFFF;
+  background-color: #222222;
   height: 36px;
   width: 36px;
   text-align: center;
