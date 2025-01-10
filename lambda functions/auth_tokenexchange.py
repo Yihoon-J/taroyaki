@@ -83,6 +83,7 @@ def lambda_handler(event, context):
         try:
             tokens = response.json()
             print('Received tokens with keys:', list(tokens.keys()))
+            print('Access token preview:', tokens['access_token'][:20] + '...')
         except json.JSONDecodeError as e:
             print('Error parsing token response:', str(e))
             return create_auth_response({'error': 'Invalid token response'}, None)
@@ -100,30 +101,19 @@ def lambda_handler(event, context):
                 print('Invalid JWT format')
                 return create_auth_response({'error': 'Invalid ID token format'}, None)
                 
-            # Base64 패딩 추가
-            def fix_padding(s):
-                padding = 4 - (len(s) % 4)
-                if padding != 4:
-                    s += '=' * padding
-                return s
-
             # 페이로드(두 번째 부분) 디코딩
             payload = id_token_parts[1]
             payload += '=' * ((4 - len(payload) % 4) % 4)  # 패딩 추가
             try:
                 user_info = json.loads(base64.urlsafe_b64decode(payload).decode('utf-8'))
-                print('Decoded user info keys:', list(user_info.keys()))
+                print('Decoded user info:', {
+                    'email': user_info.get('email'),
+                    'sub': user_info.get('sub')[:5] + '...'
+                })
             except Exception as e:
                 print('Error decoding payload:', str(e))
                 return create_auth_response({'error': 'Failed to decode token payload'}, None)
 
-            # 세션 생성
-            session_id = str(uuid.uuid4())
-            session_data = {
-                'name': user_info.get('nickname') or user_info.get('email'),
-                'email': user_info.get('email'),
-                'sub': user_info.get('sub')
-            }
         except Exception as e:
             print('Error decoding ID token:', str(e))
             return create_auth_response({'error': 'Failed to decode ID token'}, None)
@@ -137,7 +127,15 @@ def lambda_handler(event, context):
                 'sub': user_info.get('sub')
             }
             print('Creating session with ID:', session_id)
-            print('Session user data:', {**session_data, 'sub': session_data['sub'][:5] + '...'})
+            print('Session user data:', {
+                'name': session_data['name'],
+                'email': session_data['email'],
+                'sub': session_data['sub'][:5] + '...'
+            })
+            print('Session tokens preview:', {
+                'access_token': tokens['access_token'][:20] + '...',
+                'token_expiry': int(time.time() + tokens['expires_in'])
+            })
 
             session_manager.create_session(
                 session_id=session_id,
@@ -148,16 +146,23 @@ def lambda_handler(event, context):
                     'token_expiry': int(time.time() + tokens['expires_in'])
                 }
             )
+            print('Session successfully created in DynamoDB')
+
         except Exception as e:
             print('Error creating session:', str(e))
             return create_auth_response({'error': 'Failed to create session'}, None)
 
         # 7. 성공 응답
-        return create_auth_response({
+        response = {
             'success': True,
             'access_token': tokens['access_token'],
             'expires_in': tokens['expires_in']
-        }, session_id)
+        }
+        print('Preparing auth response with session ID:', session_id)
+        final_response = create_auth_response(response, session_id)
+        print('Final response headers:', final_response['headers'])
+        print('Final response status code:', final_response['statusCode'])
+        return final_response
         
     except Exception as e:
         print('Unexpected error:', str(e))

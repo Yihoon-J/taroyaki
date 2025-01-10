@@ -1,0 +1,24 @@
+{
+    "Name": "TarotChat-Auth-Headers-Policy",
+    "Comment": "Policy for forwarding auth headers and cookies",
+    "HeadersConfig": {
+        "HeaderBehavior": "whitelist",
+        "Headers": {
+        "Quantity": 6,
+        "Items": [
+            "Authorization",
+            "Cookie",
+            "Host",
+            "Origin", 
+            "Referer",
+            "User-Agent"
+        ]
+        }
+    },
+    "CookiesConfig": {
+        "CookieBehavior": "all"
+    },
+    "QueryStringsConfig": {
+        "QueryStringBehavior": "all"
+    }
+}

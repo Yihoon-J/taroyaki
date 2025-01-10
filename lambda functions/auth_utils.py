@@ -26,6 +26,13 @@ def get_cognito_public_keys():
     return response.json()['keys']
 
 def create_auth_response(response, session_id):
+    cookie_string = (
+        f'sessionId={session_id}; ' +
+        'Domain=d256c0vgw8wwge.cloudfront.net; ' +
+        'Secure; HttpOnly; SameSite=None; ' +
+        'Path=/; ' +
+        'Max-Age=3600'
+    )
     return {
         'statusCode': response.get('statusCode', 200),
         'headers': {
@@ -34,7 +41,7 @@ def create_auth_response(response, session_id):
             'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Cookie',
             'Access-Control-Expose-Headers': 'Set-Cookie',
-            'Set-Cookie': f'sessionId={session_id}; Secure; HttpOnly; SameSite=Lax; Path=/'
+            'Set-Cookie': f'sessionId={session_id}; Path=/; Secure; HttpOnly; SameSite=Strict'
         },
         'body': json.dumps(response)
     }

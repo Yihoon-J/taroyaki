@@ -1,6 +1,7 @@
 let socket;
 let userId;
 let currentSessionId;
+let accessToken;
 let sessionToDelete = null;
 let isWaitingForResponse = false;
 let isInputFocused = false;
@@ -14,6 +15,9 @@ const REDIRECT_URI = window.ENV.REDIRECT_URI;
 const COGNITO_DOMAIN = window.ENV.COGNITO_DOMAIN;
 const CLIENT_ID = window.ENV.CLIENT_ID;
 const FLASK_URL = window.ENV.FLASK_URL;
+
+console.log('API_URL:', window.ENV.API_URL);
+console.log('FLASK_URL:', window.ENV.FLASK_URL);
 
 async function validateConfig() {
     const requiredFields = ['API_URL', 'WS_URL', 'REDIRECT_URI', 'COGNITO_DOMAIN', 'CLIENT_ID', 'FLASK_URL'];
@@ -46,84 +50,99 @@ function redirectToLogin() {
 
 async function initializePage() {
     try {
+        console.log('1. Starting initialization...');
+        
         // 1. 설정 검증
         await validateConfig();
+        console.log('2. Config validated');
         
         // 2. URL의 인증 코드 확인
         const code = getAuthorizationCode();
-        console.log('Authorization code:', code ? 'Present' : 'Not present');
+        console.log('3. Authorization code:', code ? 'Present' : 'Not present');
         
         // 인증 코드가 없는 경우 기존 세션 검증 시도
         if (!code) {
             try {
-                console.log('Attempting to fetch user info...');
+                console.log('4. No code, attempting to fetch user info...');
                 const response = await fetch(`${FLASK_URL}/api/user-info`, {
                     credentials: 'include'
                 });
-                console.log('User info response:', response);
-                console.log('Response headers:', response.headers);
-                console.log('Cookies:', document.cookie);
+                console.log('5. User info response:', response.status);
                 
                 // 401 Unauthorized가 아닌 경우에만 세션 유효로 판단
                 if (!response.ok) {
+                    console.log('6. Response not OK, throwing error');
                     throw new Error('No valid session');
                 }
                 
                 const userInfo = await response.json();
+                console.log('7. User info received:', userInfo);
+                
                 if (!userInfo || !userInfo.sub) {
+                    console.log('8. Invalid user info');
                     throw new Error('Invalid user info');
                 }
                 
                 userId = userInfo.sub;
                 updateUserInfo(userInfo);
                 fetchSessions();
-                updateProfileButton(userInfo);
+                updateProfileButton(userInfo); 
                 setupTokenRefresh(3600);
+                console.log('9. Session setup complete');
                 return;
             } catch (error) {
-                console.error('Failed to initialize page:', error);
+                console.error('10. Failed to initialize page:', error);
                 document.getElementById('userDetails').textContent = 'Failed to load application configuration';
+                redirectToLogin();
             }
-        }
-
-        // 인증 코드가 있는 경우의 처리 (기존 코드)
-        try {
-            const tokenResponse = await exchangeCodeForTokens(code);
-            console.log('Token exchange response:', tokenResponse);
-           
-            if (tokenResponse.success) {
-                console.log('Token exchange successful, setting up refresh...');
-                setupTokenRefresh(tokenResponse.expires_in);
-                accessToken = tokenResponse.access_token;
+        } else {
+            // 인증 코드가 있는 경우의 처리
+            try {
+                const tokenResponse = await exchangeCodeForTokens(code);
+                console.log('Token exchange complete. Parsing response...');
                 
-                console.log('Fetching user info...');
-                const userInfo = await fetchUserInfo();
-                console.log('User info received:', userInfo);
+                // API Gateway 응답 구조 처리
+                const responseData = typeof tokenResponse.body === 'string' 
+                    ? JSON.parse(tokenResponse.body) 
+                    : tokenResponse.body;
                 
-                if (userInfo) {
-                    console.log('Updating user info and fetching sessions...');
-                    userId = userInfo.sub;
-                    updateUserInfo(userInfo);
-                    fetchSessions();
-                    updateProfileButton(userInfo);
-                    displayWelcomeMessage();
+                console.log('Parsed token response:', responseData);
+                       
+                if (responseData.success) {
+                    console.log('Token exchange successful, setting up refresh...');
+                    accessToken = responseData.access_token;
+                    setupTokenRefresh(responseData.expires_in);
+                    console.log('Full document: ', document)
+                    console.log('Current cookies:', document.cookie)
                     
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    return;
+                    console.log('About to fetch user info...');
+                    const userInfo = await fetchUserInfo();
+                    console.log('User info fetch complete:', userInfo);
+                    
+                    if (userInfo) {
+                        console.log('Updating user info and fetching sessions...');
+                        userId = userInfo.sub;
+                        updateUserInfo(userInfo);
+                        fetchSessions();
+                        updateProfileButton(userInfo);
+                        displayWelcomeMessage();
+                        
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        return;
+                    }
+                } else {
+                    console.error('Token exchange success flag not found in response');
+                    throw new Error('Invalid token response');
                 }
-            } else {
-                console.log('Token exchange failed:', tokenResponse);
+            } catch (error) {
+                console.error('Authentication error:', error);
+                redirectToLogin();
             }
-
-        } catch (error) {
-            console.error('Authentication error:', error);
-            console.error('Error stack:', error.stack);
-            redirectToLogin();
         }
-        
     } catch (error) {
         console.error('Failed to initialize page:', error);
         document.getElementById('userDetails').textContent = 'Failed to load application configuration';
+        redirectToLogin();
     }
 }
 
@@ -137,7 +156,7 @@ function setupTokenRefresh(expiresIn) {
     
     refreshTimer = setTimeout(async () => {
         try {
-            const response = await fetch('/auth/refresh', {
+            const response = await fetch(`${FLASK_URL}/auth/refresh`, {
                 method: 'POST',
                 credentials: 'include'
             });
@@ -161,10 +180,15 @@ function setupTokenRefresh(expiresIn) {
 async function fetchUserInfo() {
     try {
         const response = await fetch(`${FLASK_URL}/api/user-info`, {
-            credentials: 'include'
+            credentials: 'include',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
         });
         
         if (!response.ok) {
+            const errorData = await response.json();
+            console.error('User info error:', errorData);
             throw new Error('Failed to fetch user info');
         }
         
@@ -882,6 +906,7 @@ function initializeEventListeners() {
 
     if (messageInput && sendButton) {
         // Message input and send button listeners
+        console.log('window.ENV:', window.ENV);
         messageInput.addEventListener('input', updateInputAreaStyle);
         messageInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {

@@ -3,10 +3,18 @@ from session_manager import SessionManager
 from auth_utils import *
 
 def lambda_handler(event, context):
+    print("Full event:", event)
     session_manager = SessionManager()
     
     try:
-        # 쿠키에서 세션 ID 추출
+        headers = event.get('headers', {})
+        # 현재 추가한 부분은 아래 5줄
+        print("Headers received:", headers)
+        auth_header = headers.get('Authorization')
+        print("Authorization header:", auth_header)
+        cookies = headers.get('Cookie')
+        print("Cookies:", cookies)
+
         cookies = event.get('headers', {}).get('Cookie', '')
         session_id = next(
             (c.split('=')[1] for c in cookies.split(';') 

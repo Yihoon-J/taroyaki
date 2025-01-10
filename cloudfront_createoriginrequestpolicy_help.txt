@@ -1,0 +1,502 @@
+CREATE-ORIGIN-REQUEST-POLICY()                  CREATE-ORIGIN-REQUEST-POLICY()
+
+NNAAMMEE
+       create-origin-request-policy -
+
+DDEESSCCRRIIPPTTIIOONN
+       Creates an origin request policy.
+
+       After you create an origin request policy, you can attach it to one or
+       more cache behaviors. When it's attached to a cache behavior, the
+       origin request policy determines the values that CloudFront includes in
+       requests that it sends to the origin. Each request that CloudFront
+       sends to the origin includes the following:
+
+       +o The request body and the URL path (without the domain name) from the
+         viewer request.
+
+       +o The headers that CloudFront automatically includes in every origin
+         request, including HHoosstt , UUsseerr--AAggeenntt , and XX--AAmmzz--CCff--IIdd .
+
+       +o All HTTP headers, cookies, and URL query strings that are specified
+         in the cache policy or the origin request policy. These can include
+         items from the viewer request and, in the case of headers, additional
+         ones that are added by CloudFront.
+
+       CloudFront sends a request when it can't find a valid object in its
+       cache that matches the request. If you want to send values to the
+       origin and also include them in the cache key, use CCaacchheePPoolliiccyy .
+
+       For more information about origin request policies, see _C_o_n_t_r_o_l_l_i_n_g
+       _o_r_i_g_i_n _r_e_q_u_e_s_t_s in the _A_m_a_z_o_n _C_l_o_u_d_F_r_o_n_t _D_e_v_e_l_o_p_e_r _G_u_i_d_e .
+
+       See also: AWS API Documentation
+
+SSYYNNOOPPSSIISS
+
+            create-origin-request-policy
+          --origin-request-policy-config <value>
+          [--cli-input-json | --cli-input-yaml]
+          [--generate-cli-skeleton <value>]
+          [--debug]
+          [--endpoint-url <value>]
+          [--no-verify-ssl]
+          [--no-paginate]
+          [--output <value>]
+          [--query <value>]
+          [--profile <value>]
+          [--region <value>]
+          [--version <value>]
+          [--color <value>]
+          [--no-sign-request]
+          [--ca-bundle <value>]
+          [--cli-read-timeout <value>]
+          [--cli-connect-timeout <value>]
+          [--cli-binary-format <value>]
+          [--no-cli-pager]
+          [--cli-auto-prompt]
+          [--no-cli-auto-prompt]
+
+OOPPTTIIOONNSS
+       ----oorriiggiinn--rreeqquueesstt--ppoolliiccyy--ccoonnffiigg (structure)
+          An origin request policy configuration.
+
+          Comment -> (string)
+             A comment to describe the origin request policy. The comment
+             cannot be longer than 128 characters.
+
+          Name -> (string)
+             A unique name to identify the origin request policy.
+
+          HeadersConfig -> (structure)
+             The HTTP headers to include in origin requests. These can include
+             headers from viewer requests and additional headers added by
+             CloudFront.
+
+             HeaderBehavior -> (string)
+                Determines whether any HTTP headers are included in requests
+                that CloudFront sends to the origin. Valid values are:
+
+                +o nnoonnee - No HTTP headers in viewer requests are included in
+                  requests that CloudFront sends to the origin. Even when this
+                  field is set to nnoonnee , any headers that are listed in a
+                  CCaacchheePPoolliiccyy  _a_r_e included in origin requests.
+
+                +o wwhhiitteelliisstt - Only the HTTP headers that are listed in the
+                  HHeeaaddeerrss type are included in requests that CloudFront sends
+                  to the origin.
+
+                +o aallllVViieewweerr - All HTTP headers in viewer requests are included
+                  in requests that CloudFront sends to the origin.
+
+                +o aallllVViieewweerrAAnnddWWhhiitteelliissttCClloouuddFFrroonntt - All HTTP headers in viewer
+                  requests and the additional CloudFront headers that are
+                  listed in the HHeeaaddeerrss type are included in requests that
+                  CloudFront sends to the origin. The additional headers are
+                  added by CloudFront.
+
+                +o aallllEExxcceepptt - All HTTP headers in viewer requests are included
+                  in requests that CloudFront sends to the origin, * eexxcceepptt *
+                  for those listed in the HHeeaaddeerrss type, which are not
+                  included.
+
+              Headers -> (structure)
+                Contains a list of HTTP header names.
+
+                Quantity -> (integer)
+                   The number of header names in the IItteemmss list.
+
+                 Items -> (list)
+                   A list of HTTP header names.
+
+                   (string)
+
+          CookiesConfig -> (structure)
+             The cookies from viewer requests to include in origin requests.
+
+             CookieBehavior -> (string)
+                Determines whether cookies in viewer requests are included in
+                requests that CloudFront sends to the origin. Valid values
+                are:
+
+                +o nnoonnee - No cookies in viewer requests are included in
+                  requests that CloudFront sends to the origin. Even when this
+                  field is set to nnoonnee , any cookies that are listed in a
+                  CCaacchheePPoolliiccyy  _a_r_e included in origin requests.
+
+                +o wwhhiitteelliisstt - Only the cookies in viewer requests that are
+                  listed in the CCooookkiieeNNaammeess type are included in requests that
+                  CloudFront sends to the origin.
+
+                +o aallll - All cookies in viewer requests are included in
+                  requests that CloudFront sends to the origin.
+
+                +o aallllEExxcceepptt - All cookies in viewer requests are included in
+                  requests that CloudFront sends to the origin, * eexxcceepptt * for
+                  those listed in the CCooookkiieeNNaammeess type, which are not
+                  included.
+
+              Cookies -> (structure)
+                Contains a list of cookie names.
+
+                Quantity -> (integer)
+                   The number of cookie names in the IItteemmss list.
+
+                 Items -> (list)
+                   A list of cookie names.
+
+                   (string)
+
+          QueryStringsConfig -> (structure)
+             The URL query strings from viewer requests to include in origin
+             requests.
+
+             QueryStringBehavior -> (string)
+                Determines whether any URL query strings in viewer requests
+                are included in requests that CloudFront sends to the origin.
+                Valid values are:
+
+                +o nnoonnee - No query strings in viewer requests are included in
+                  requests that CloudFront sends to the origin. Even when this
+                  field is set to nnoonnee , any query strings that are listed in
+                  a CCaacchheePPoolliiccyy  _a_r_e included in origin requests.
+
+                +o wwhhiitteelliisstt - Only the query strings in viewer requests that
+                  are listed in the QQuueerryySSttrriinnggNNaammeess type are included in
+                  requests that CloudFront sends to the origin.
+
+                +o aallll - All query strings in viewer requests are included in
+                  requests that CloudFront sends to the origin.
+
+                +o aallllEExxcceepptt - All query strings in viewer requests are
+                  included in requests that CloudFront sends to the origin, *
+                  eexxcceepptt * for those listed in the QQuueerryySSttrriinnggNNaammeess type,
+                  which are not included.
+
+              QueryStrings -> (structure)
+                Contains the specific query strings in viewer requests that
+                either * aarree * or * aarree nnoott * included in requests that
+                CloudFront sends to the origin. The behavior depends on
+                whether the QQuueerryySSttrriinnggBBeehhaavviioorr field in the
+                OOrriiggiinnRReeqquueessttPPoolliiccyyQQuueerryySSttrriinnggssCCoonnffiigg type is set to wwhhiitteelliisstt
+                (the listed query strings * aarree * included) or aallllEExxcceepptt (the
+                listed query strings * aarree nnoott * included, but all other query
+                strings are).
+
+                Quantity -> (integer)
+                   The number of query string names in the IItteemmss list.
+
+                 Items -> (list)
+                   A list of query string names.
+
+                   (string)
+
+       JSON Syntax:
+
+          {
+            "Comment": "string",
+            "Name": "string",
+            "HeadersConfig": {
+              "HeaderBehavior": "none"|"whitelist"|"allViewer"|"allViewerAndWhitelistCloudFront"|"allExcept",
+              "Headers": {
+                "Quantity": integer,
+                "Items": ["string", ...]
+              }
+            },
+            "CookiesConfig": {
+              "CookieBehavior": "none"|"whitelist"|"all"|"allExcept",
+              "Cookies": {
+                "Quantity": integer,
+                "Items": ["string", ...]
+              }
+            },
+            "QueryStringsConfig": {
+              "QueryStringBehavior": "none"|"whitelist"|"all"|"allExcept",
+              "QueryStrings": {
+                "Quantity": integer,
+                "Items": ["string", ...]
+              }
+            }
+          }
+
+       ----ccllii--iinnppuutt--jjssoonn | ----ccllii--iinnppuutt--yyaammll (string) Reads arguments from the
+       JSON string provided. The JSON string follows the format provided by
+       ----ggeenneerraattee--ccllii--sskkeelleettoonn. If other arguments are provided on the command
+       line, those values will override the JSON-provided values. It is not
+       possible to pass arbitrary binary values using a JSON-provided value as
+       the string will be taken literally. This may not be specified along
+       with ----ccllii--iinnppuutt--yyaammll.
+
+       ----ggeenneerraattee--ccllii--sskkeelleettoonn (string) Prints a JSON skeleton to standard
+       output without sending an API request. If provided with no value or the
+       value iinnppuutt, prints a sample input JSON that can be used as an argument
+       for ----ccllii--iinnppuutt--jjssoonn. Similarly, if provided yyaammll--iinnppuutt it will print a
+       sample input YAML that can be used with ----ccllii--iinnppuutt--yyaammll. If provided
+       with the value oouuttppuutt, it validates the command inputs and returns a
+       sample output JSON for that command. The generated JSON skeleton is not
+       stable between versions of the AWS CLI and there are no backwards
+       compatibility guarantees in the JSON skeleton generated.
+
+GGLLOOBBAALL OOPPTTIIOONNSS
+       ----ddeebbuugg (boolean)
+
+       Turn on debug logging.
+
+       ----eennddppooiinntt--uurrll (string)
+
+       Override command's default URL with the given URL.
+
+       ----nnoo--vveerriiffyy--ssssll (boolean)
+
+       By default, the AWS CLI uses SSL when communicating with AWS services.
+       For each SSL connection, the AWS CLI will verify SSL certificates. This
+       option overrides the default behavior of verifying SSL certificates.
+
+       ----nnoo--ppaaggiinnaattee (boolean)
+
+       Disable automatic pagination.
+
+       ----oouuttppuutt (string)
+
+       The formatting style for command output.
+
+       +o json
+
+       +o text
+
+       +o table
+
+       +o yaml
+
+       +o yaml-stream
+
+       ----qquueerryy (string)
+
+       A JMESPath query to use in filtering the response data.
+
+       ----pprrooffiillee (string)
+
+       Use a specific profile from your credential file.
+
+       ----rreeggiioonn (string)
+
+       The region to use. Overrides config/env settings.
+
+       ----vveerrssiioonn (string)
+
+       Display the version of this tool.
+
+       ----ccoolloorr (string)
+
+       Turn on/off color output.
+
+       +o on
+
+       +o off
+
+       +o auto
+
+       ----nnoo--ssiiggnn--rreeqquueesstt (boolean)
+
+       Do not sign requests. Credentials will not be loaded if this argument
+       is provided.
+
+       ----ccaa--bbuunnddllee (string)
+
+       The CA certificate bundle to use when verifying SSL certificates.
+       Overrides config/env settings.
+
+       ----ccllii--rreeaadd--ttiimmeeoouutt (int)
+
+       The maximum socket read time in seconds. If the value is set to 0, the
+       socket read will be blocking and not timeout. The default value is 60
+       seconds.
+
+       ----ccllii--ccoonnnneecctt--ttiimmeeoouutt (int)
+
+       The maximum socket connect time in seconds. If the value is set to 0,
+       the socket connect will be blocking and not timeout. The default value
+       is 60 seconds.
+
+       ----ccllii--bbiinnaarryy--ffoorrmmaatt (string)
+
+       The formatting style to be used for binary blobs. The default format is
+       base64. The base64 format expects binary blobs to be provided as a
+       base64 encoded string. The raw-in-base64-out format preserves
+       compatibility with AWS CLI V1 behavior and binary values must be passed
+       literally. When providing contents from a file that map to a binary
+       blob ffiilleebb:://// will always be treated as binary and use the file
+       contents directly regardless of the ccllii--bbiinnaarryy--ffoorrmmaatt setting. When
+       using ffiillee:://// the file contents will need to properly formatted for the
+       configured ccllii--bbiinnaarryy--ffoorrmmaatt.
+
+       +o base64
+
+       +o raw-in-base64-out
+
+       ----nnoo--ccllii--ppaaggeerr (boolean)
+
+       Disable cli pager for output.
+
+       ----ccllii--aauuttoo--pprroommpptt (boolean)
+
+       Automatically prompt for CLI input parameters.
+
+       ----nnoo--ccllii--aauuttoo--pprroommpptt (boolean)
+
+       Disable automatically prompt for CLI input parameters.
+
+OOUUTTPPUUTT
+       OriginRequestPolicy -> (structure)
+          An origin request policy.
+
+          Id -> (string)
+             The unique identifier for the origin request policy.
+
+          LastModifiedTime -> (timestamp)
+             The date and time when the origin request policy was last
+             modified.
+
+          OriginRequestPolicyConfig -> (structure)
+             The origin request policy configuration.
+
+             Comment -> (string)
+                A comment to describe the origin request policy. The comment
+                cannot be longer than 128 characters.
+
+              Name -> (string)
+                A unique name to identify the origin request policy.
+
+              HeadersConfig -> (structure)
+                The HTTP headers to include in origin requests. These can
+                include headers from viewer requests and additional headers
+                added by CloudFront.
+
+                HeaderBehavior -> (string)
+                   Determines whether any HTTP headers are included in
+                   requests that CloudFront sends to the origin. Valid values
+                   are:
+
+                   +o nnoonnee - No HTTP headers in viewer requests are included in
+                     requests that CloudFront sends to the origin. Even when
+                     this field is set to nnoonnee , any headers that are listed
+                     in a CCaacchheePPoolliiccyy  _a_r_e included in origin requests.
+
+                   +o wwhhiitteelliisstt - Only the HTTP headers that are listed in the
+                     HHeeaaddeerrss type are included in requests that CloudFront
+                     sends to the origin.
+
+                   +o aallllVViieewweerr - All HTTP headers in viewer requests are
+                     included in requests that CloudFront sends to the origin.
+
+                   +o aallllVViieewweerrAAnnddWWhhiitteelliissttCClloouuddFFrroonntt - All HTTP headers in
+                     viewer requests and the additional CloudFront headers
+                     that are listed in the HHeeaaddeerrss type are included in
+                     requests that CloudFront sends to the origin. The
+                     additional headers are added by CloudFront.
+
+                   +o aallllEExxcceepptt - All HTTP headers in viewer requests are
+                     included in requests that CloudFront sends to the origin,
+                     * eexxcceepptt * for those listed in the HHeeaaddeerrss type, which
+                     are not included.
+
+                 Headers -> (structure)
+                   Contains a list of HTTP header names.
+
+                   Quantity -> (integer)
+                      The number of header names in the IItteemmss list.
+
+                     Items -> (list)
+                      A list of HTTP header names.
+
+                      (string)
+
+              CookiesConfig -> (structure)
+                The cookies from viewer requests to include in origin
+                requests.
+
+                CookieBehavior -> (string)
+                   Determines whether cookies in viewer requests are included
+                   in requests that CloudFront sends to the origin. Valid
+                   values are:
+
+                   +o nnoonnee - No cookies in viewer requests are included in
+                     requests that CloudFront sends to the origin. Even when
+                     this field is set to nnoonnee , any cookies that are listed
+                     in a CCaacchheePPoolliiccyy  _a_r_e included in origin requests.
+
+                   +o wwhhiitteelliisstt - Only the cookies in viewer requests that are
+                     listed in the CCooookkiieeNNaammeess type are included in requests
+                     that CloudFront sends to the origin.
+
+                   +o aallll - All cookies in viewer requests are included in
+                     requests that CloudFront sends to the origin.
+
+                   +o aallllEExxcceepptt - All cookies in viewer requests are included
+                     in requests that CloudFront sends to the origin, * eexxcceepptt
+                     * for those listed in the CCooookkiieeNNaammeess type, which are not
+                     included.
+
+                 Cookies -> (structure)
+                   Contains a list of cookie names.
+
+                   Quantity -> (integer)
+                      The number of cookie names in the IItteemmss list.
+
+                     Items -> (list)
+                      A list of cookie names.
+
+                      (string)
+
+              QueryStringsConfig -> (structure)
+                The URL query strings from viewer requests to include in
+                origin requests.
+
+                QueryStringBehavior -> (string)
+                   Determines whether any URL query strings in viewer requests
+                   are included in requests that CloudFront sends to the
+                   origin. Valid values are:
+
+                   +o nnoonnee - No query strings in viewer requests are included
+                     in requests that CloudFront sends to the origin. Even
+                     when this field is set to nnoonnee , any query strings that
+                     are listed in a CCaacchheePPoolliiccyy  _a_r_e included in origin
+                     requests.
+
+                   +o wwhhiitteelliisstt - Only the query strings in viewer requests
+                     that are listed in the QQuueerryySSttrriinnggNNaammeess type are included
+                     in requests that CloudFront sends to the origin.
+
+                   +o aallll - All query strings in viewer requests are included
+                     in requests that CloudFront sends to the origin.
+
+                   +o aallllEExxcceepptt - All query strings in viewer requests are
+                     included in requests that CloudFront sends to the origin,
+                     * eexxcceepptt * for those listed in the QQuueerryySSttrriinnggNNaammeess type,
+                     which are not included.
+
+                 QueryStrings -> (structure)
+                   Contains the specific query strings in viewer requests that
+                   either * aarree * or * aarree nnoott * included in requests that
+                   CloudFront sends to the origin. The behavior depends on
+                   whether the QQuueerryySSttrriinnggBBeehhaavviioorr field in the
+                   OOrriiggiinnRReeqquueessttPPoolliiccyyQQuueerryySSttrriinnggssCCoonnffiigg type is set to
+                   wwhhiitteelliisstt (the listed query strings * aarree * included) or
+                   aallllEExxcceepptt (the listed query strings * aarree nnoott * included,
+                   but all other query strings are).
+
+                   Quantity -> (integer)
+                      The number of query string names in the IItteemmss list.
+
+                     Items -> (list)
+                      A list of query string names.
+
+                      (string)
+
+       Location -> (string)
+          The fully qualified URI of the origin request policy just created.
+
+       ETag -> (string)
+          The current version of the origin request policy.
+
+                                                CREATE-ORIGIN-REQUEST-POLICY()
