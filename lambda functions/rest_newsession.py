@@ -19,7 +19,7 @@ def lambda_handler(event, context):
                 'body': json.dumps({'error': 'userId is required'}),
                 'headers': {
                     'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': 'http://localhost:3001',
+                    'Access-Control-Allow-Origin': 'https://d256c0vgw8wwge.cloudfront.net',
                     'Access-Control-Allow-Credentials': 'true'
                 }
             }
@@ -36,7 +36,7 @@ def lambda_handler(event, context):
             }),
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': 'http://localhost:3001',
+                'Access-Control-Allow-Origin': 'https://d256c0vgw8wwge.cloudfront.net',
                 'Access-Control-Allow-Credentials': 'true'
             }
         }
@@ -46,7 +46,7 @@ def lambda_handler(event, context):
             'body': json.dumps({'error': str(e)}),
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': 'http://localhost:3001',
+                'Access-Control-Allow-Origin': 'https://d256c0vgw8wwge.cloudfront.net',
                 'Access-Control-Allow-Credentials': 'true'
             }
         }

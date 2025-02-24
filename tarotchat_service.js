@@ -1,6 +1,5 @@
 let socket;
 let userId;
-let currentSessionId;
 let accessToken;
 let sessionToDelete = null;
 let isWaitingForResponse = false;
@@ -8,6 +7,9 @@ let isInputFocused = false;
 let typingAnimation = null;
 let refreshTimer = null;
 let isEmptySession = false;
+let idToken;
+let tokenExpiryTime;
+let currentSessionId;
 
 const API_URL = window.ENV.API_URL;
 const WS_URL = window.ENV.WS_URL;
@@ -35,140 +37,139 @@ function redirectToLogin() {
         console.error('Missing required configuration');
         return;
     }
-    
-    // 강제로 새로운 로그인을 요청하는 파라미터 추가
+
     const loginUrl = `${COGNITO_DOMAIN}/login?` +
         `client_id=${CLIENT_ID}&` +
         `response_type=code&` +
-        `scope=email+openid+profile&` +
+        `scope=${encodeURIComponent('openid email profile')}&` +
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-        `prompt=login&` +
-        `max_age=0`;
-    
+        `prompt=consent`; // 'login' 대신 'consent'로 수정
+
     window.location.href = loginUrl;
+}
+
+
+async function validateTokenBeforeRequest() {
+    const token = localStorage.getItem('accessToken');
+    const expiry = localStorage.getItem('tokenExpiry');
+    
+    if (!token || !expiry || Date.now() >= parseInt(expiry)) {
+        // 토큰 갱신 필요
+        await refreshTokens();
+    }
+    return localStorage.getItem('accessToken');
+}
+
+async function apiCall(url, options = {}) {
+    try {
+        const token = await validateTokenBeforeRequest();
+        if (!token) {
+            throw new Error('No access token available');
+        }
+
+        const response = await fetch(url, {
+            ...options,
+            credentials: 'include',  // credentials 추가
+            headers: {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (response.status === 401) {
+            // 토큰 갱신 시도
+            const newToken = await refreshTokens();
+            // 갱신된 토큰으로 재시도
+            return fetch(url, {
+                ...options,
+                credentials: 'include',
+                headers: {
+                    ...options.headers,
+                    'Authorization': `Bearer ${newToken}`,
+                    'Accept': 'application/json'
+                }
+            });
+        }
+
+        return response;
+    } catch (error) {
+        console.error('API call failed:', error);
+        throw error;
+    }
 }
 
 async function initializePage() {
     try {
         console.log('1. Starting initialization...');
-        
-        // 1. 설정 검증
         await validateConfig();
-        console.log('2. Config validated');
-        
-        // 2. URL의 인증 코드 확인
-        const code = getAuthorizationCode();
+
+        const code = getAuthorizationCode(); // URL에서 인증 코드 추출
         console.log('3. Authorization code:', code ? 'Present' : 'Not present');
-        
-        // 인증 코드가 없는 경우 기존 세션 검증 시도
+
         if (!code) {
-            try {
-                console.log('4. No code, attempting to fetch user info...');
-                const response = await fetch(`${FLASK_URL}/api/user-info`, {
-                    credentials: 'include'
-                });
-                console.log('5. User info response:', response.status);
-                
-                // 401 Unauthorized가 아닌 경우에만 세션 유효로 판단
-                if (!response.ok) {
-                    console.log('6. Response not OK, throwing error');
-                    throw new Error('No valid session');
-                }
-                
-                const userInfo = await response.json();
-                console.log('7. User info received:', userInfo);
-                
-                if (!userInfo || !userInfo.sub) {
-                    console.log('8. Invalid user info');
-                    throw new Error('Invalid user info');
-                }
-                
-                userId = userInfo.sub;
+            console.log('No authorization code, redirecting to login...');
+            redirectToLogin();
+            return;
+        }
+
+        try {
+            console.log('Processing authorization code...');
+            const tokenResponse = await exchangeCodeForTokens(code); // code 전달
+            console.log('Token exchange successful:', tokenResponse);
+
+            localStorage.setItem('accessToken', tokenResponse.access_token);
+            localStorage.setItem('refreshToken', tokenResponse.refresh_token);
+            localStorage.setItem('tokenExpiry', Date.now() + (tokenResponse.expires_in * 1000));
+
+            // 사용자 정보 가져오기
+            const userInfo = await fetchUserInfo();
+            if (userInfo) {
+                console.log('User info received:', userInfo);
                 updateUserInfo(userInfo);
-                fetchSessions();
-                updateProfileButton(userInfo); 
-                setupTokenRefresh(3600);
-                console.log('9. Session setup complete');
-                return;
-            } catch (error) {
-                console.error('10. Failed to initialize page:', error);
-                document.getElementById('userDetails').textContent = 'Failed to load application configuration';
-                redirectToLogin();
             }
-        } else {
-            // 인증 코드가 있는 경우의 처리
-            try {
-                const tokenResponse = await exchangeCodeForTokens(code);
-                console.log('Token exchange complete. Parsing response...');
-                
-                // API Gateway 응답 구조 처리
-                const responseData = typeof tokenResponse.body === 'string' 
-                    ? JSON.parse(tokenResponse.body) 
-                    : tokenResponse.body;
-                
-                console.log('Parsed token response:', responseData);
-                       
-                if (responseData.success) {
-                    console.log('Token exchange successful, setting up refresh...');
-                    accessToken = responseData.access_token;
-                    setupTokenRefresh(responseData.expires_in);
-                    console.log('Full document: ', document)
-                    console.log('Current cookies:', document.cookie)
-                    
-                    console.log('About to fetch user info...');
-                    const userInfo = await fetchUserInfo();
-                    console.log('User info fetch complete:', userInfo);
-                    
-                    if (userInfo) {
-                        console.log('Updating user info and fetching sessions...');
-                        userId = userInfo.sub;
-                        updateUserInfo(userInfo);
-                        fetchSessions();
-                        updateProfileButton(userInfo);
-                        displayWelcomeMessage();
-                        
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        return;
-                    }
-                } else {
-                    console.error('Token exchange success flag not found in response');
-                    throw new Error('Invalid token response');
-                }
-            } catch (error) {
-                console.error('Authentication error:', error);
-                redirectToLogin();
-            }
+
+            // URL에서 인증 코드 제거
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (error) {
+            console.error('Authentication error:', error);
+            redirectToLogin();
         }
     } catch (error) {
-        console.error('Failed to initialize page:', error);
-        document.getElementById('userDetails').textContent = 'Failed to load application configuration';
+        console.error('Initialization failed:', error);
         redirectToLogin();
     }
 }
 
-function setupTokenRefresh(expiresIn) {
-    // 토큰 만료 10분 전에 갱신
-    const refreshTime = (expiresIn - 600) * 1000;
-    
-    if (refreshTimer) {
-        clearTimeout(refreshTimer);
-    }
-    
+async function setupTokenRefresh(expiresIn) {
+    const refreshTime = (expiresIn - 300) * 1000;
     refreshTimer = setTimeout(async () => {
         try {
-            const response = await fetch(`${FLASK_URL}/auth/refresh`, {
+            console.log('Attempting token refresh...');
+            const response = await apiCall(`${FLASK_URL}/auth/refresh`, {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
                 credentials: 'include'
             });
+
+            console.log('Refresh response status:', response.status);
             
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    accessToken = data.access_token;
-                    setupTokenRefresh(data.expires_in);
-                }
+            if (!response.ok) {
+                throw new Error('Token refresh failed');
+            }
+
+            const data = await response.json();
+            console.log('Refresh response:', data);
+
+            if (data.success) {
+                accessToken = data.access_token;
+                tokenexpiryTime = Date.now() + (data.expires_in * 1000);
+                setupTokenRefresh(data.expires_in);
             } else {
-                redirectToLogin();
+                throw new Error(data.error || 'Invalid refresh response');
             }
         } catch (error) {
             console.error('Token refresh failed:', error);
@@ -177,24 +178,51 @@ function setupTokenRefresh(expiresIn) {
     }, refreshTime);
 }
 
+async function refreshTokens() {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) {
+        throw new Error('No refresh token available');
+    }
+
+    try {
+        const response = await fetch(`${FLASK_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ refresh_token: refreshToken })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            
+            // 전역 변수와 localStorage 모두 업데이트
+            accessToken = data.access_token;
+            tokenExpiryTime = Date.now() + (data.expires_in * 1000);
+            
+            localStorage.setItem('accessToken', data.access_token);
+            localStorage.setItem('tokenExpiry', tokenExpiryTime.toString());
+            
+            return data.access_token;
+        } else {
+            throw new Error('Token refresh failed');
+        }
+    } catch (error) {
+        localStorage.clear();
+        redirectToLogin();
+        throw error;
+    }
+}
+
 async function fetchUserInfo() {
     try {
-        const response = await fetch(`${FLASK_URL}/api/user-info`, {
-            credentials: 'include',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
-        });
+        const storedToken = localStorage.getItem('accessToken');
+        console.log('Token being used for user-info:', storedToken?.substring(0, 20) + '...');
         
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('User info error:', errorData);
-            throw new Error('Failed to fetch user info');
-        }
-        
-        return await response.json();
+        const response = await apiCall(`${FLASK_URL}/api/user-info`);
+        return response.json();
     } catch (error) {
-        console.error('Error fetching user info:', error);
+        console.error('Error in fetchUserInfo:', error);
         throw error;
     }
 }
@@ -205,57 +233,60 @@ function getAuthorizationCode() {
 }
 
 async function exchangeCodeForTokens(code) {
-    try {
-        console.log('Exchanging code for tokens...');
-        const response = await fetch(`${FLASK_URL}/auth/token`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({ code })
-        });
-        
-        console.log('Token exchange raw response:', response);
+    const response = await fetch(`${COGNITO_DOMAIN}/oauth2/token`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: CLIENT_ID,
+            redirect_uri: REDIRECT_URI,
+            code: code
+        }).toString()
+    });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Token exchange error:', errorData);
-            throw new Error(errorData.error || 'Token exchange failed');
-        }
-        
-        const data = await response.json();
-        console.log('Token exchange parsed response:', data);
-        return data;
-
-    } catch (error) {
-        console.error('Token exchange error:', error);
-        throw error;
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Token exchange failed:', errorText);
+        throw new Error(`Token exchange failed with status ${response.status}`);
     }
+
+    return await response.json();
 }
 
+
 function updateUserInfo(userInfo) {
-    // 기존 userDetails 업데이트
+    console.log('userInfo:', userInfo);
     document.getElementById('userDetails').textContent = 
         `${userInfo.name} (${userInfo.email})`;
         
-    // ProfileModal 내용 업데이트
     const profileModal = document.getElementById('profileModal');
-    const modalContent = profileModal.querySelector('.modalB-content');
     
-    // 기존 사용자 정보 요소가 있다면 제거
+    const modalContent = profileModal?.querySelector('.modalB-content');
+    
+    if (!profileModal || !modalContent) {
+        console.error('Required DOM elements not found');
+        return;
+    }
+    
     const existingUserInfo = modalContent.querySelector('.user-info');
+    
     if (existingUserInfo) {
         existingUserInfo.remove();
     }
     
-    // 새로운 사용자 정보 요소 생성
     const userInfoElement = document.createElement('div');
     userInfoElement.className = 'user-info';
     userInfoElement.textContent = `${userInfo.email}`;
     
-    // modalContent의 첫 번째 요소 다음에 삽입
-    modalContent.insertBefore(userInfoElement, modalContent.firstChild);
+    try {
+        modalContent.insertBefore(userInfoElement, modalContent.firstChild);
+    } catch (error) {
+        console.error('Error inserting element:', error);
+    }
+
+    console.log('updateUserInfo Finished!');
 }
 
 function displayWelcomeMessage() {
@@ -264,10 +295,9 @@ function displayWelcomeMessage() {
 }
 
 async function fetchSessions() {
+    console.log('fetching sessions...')
     try {
-        const response = await fetch(`${API_URL}/sessions?userId=${userId}`, {
-            credentials: 'include'
-        });
+        const response = await apiCall(`${API_URL}/sessions?userId=${userId}`);
         const sessions = await response.json();
         displaySessions(sessions);
     } catch (error) {
@@ -318,7 +348,7 @@ async function disconnectCurrentSession() {
         
         try {
             // 1. 세션의 대화 내역 가져오기
-            const response = await fetch(`${API_URL}/sessions/${currentSessionId}?userId=${userId}`, {
+            const response = await apiCall(`${API_URL}/sessions/${currentSessionId}?userId=${userId}`, {
                 credentials: 'include'
             });
             
@@ -336,7 +366,7 @@ async function disconnectCurrentSession() {
                     
                 // 3. 세션 삭제
                 console.log('Empty session deleted.')
-                const deleteResponse = await fetch(`${API_URL}/sessions/${currentSessionId}?userId=${userId}`, {
+                const deleteResponse = await apiCall(`${API_URL}/sessions/${currentSessionId}?userId=${userId}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
@@ -420,8 +450,10 @@ async function loadSession(sessionId) {
 
     currentSessionId = sessionId;
     try {
-        const response = await fetch(`${API_URL}/sessions/${sessionId}?userId=${userId}`, {
-            credentials: 'include'
+        const response = await apiCall(`${API_URL}/sessions/${sessionId}?userId=${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${idToken}`
+            }
         });
         const messages = await response.json();
         
@@ -446,18 +478,55 @@ async function loadSession(sessionId) {
 }
 
 // 프로덕션 용
+async function connectWebSocket() {
+    if (!accessToken || !userId || !currentSessionId) {
+    console.error('Missing required parameters for WebSocket connection');
+    return;
+    }
+
+    const wsUrl = `${WS_URL}?token=${accessToken}&userId=${userId}&sessionId=${currentSessionId}`;
+    console.log('Attempting to connect WebSocket with URL:', wsUrl);
+    socket = new WebSocket(wsUrl);
+
+        return new Promise((resolve, reject) => {
+            socket.onopen = function() {
+                console.log('WebSocket connected for session:', currentSessionId);
+                resolve();
+            };
+
+            socket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleIncomingMessage(data);
+            };
+
+            socket.onclose = function(event) {
+                console.log('WebSocket closed:', event.code, event.reason);
+            };
+
+            socket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                reject(error);
+            };
+        });
+    }
+
+
+// 테스트용: 세션 연결만 되면 애니메이션 항상 표시
 // async function connectWebSocket() {
-//     if (!currentSessionId) {
-//         console.error('No session ID available for WebSocket connection');
+//     if (!accessToken || !userId || !currentSessionId) {
+//         console.error('Missing required parameters for WebSocket connection');
 //         return;
 //     }
     
-//     const wsUrl = `${WS_URL}?userId=${encodeURIComponent(userId)}&sessionId=${currentSessionId}`;
+//     const wsUrl = `${WS_URL}?token=${accessToken}&userId=${userId}&sessionId=${currentSessionId}`;
+//     console.log('Attempting to connect WebSocket with URL:', wsUrl);
 //     socket = new WebSocket(wsUrl);
 
 //     return new Promise((resolve, reject) => {
 //         socket.onopen = function() {
 //             console.log('WebSocket connected for session:', currentSessionId);
+//             // WebSocket 연결 성공 시 로딩 애니메이션 표시
+//             showTypingIndicator();
 //             resolve();
 //         };
 
@@ -468,52 +537,18 @@ async function loadSession(sessionId) {
 
 //         socket.onclose = function(event) {
 //             console.log('WebSocket closed:', event.code, event.reason);
+//             // WebSocket 연결 종료 시 애니메이션 제거
+//             hideTypingIndicator();
 //         };
 
 //         socket.onerror = function(error) {
 //             console.error('WebSocket error:', error);
+//             // 에러 발생 시 애니메이션 제거
+//             hideTypingIndicator();
 //             reject(error);
 //         };
 //     });
 // }
-
-// 테스트용: 세션 연결만 되면 애니메이션 항상 표시
-async function connectWebSocket() {
-    if (!currentSessionId) {
-        console.error('No session ID available for WebSocket connection');
-        return;
-    }
-    
-    const wsUrl = `${WS_URL}?userId=${encodeURIComponent(userId)}&sessionId=${currentSessionId}`;
-    socket = new WebSocket(wsUrl);
-
-    return new Promise((resolve, reject) => {
-        socket.onopen = function() {
-            console.log('WebSocket connected for session:', currentSessionId);
-            // WebSocket 연결 성공 시 로딩 애니메이션 표시
-            showTypingIndicator();
-            resolve();
-        };
-
-        socket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            handleIncomingMessage(data);
-        };
-
-        socket.onclose = function(event) {
-            console.log('WebSocket closed:', event.code, event.reason);
-            // WebSocket 연결 종료 시 애니메이션 제거
-            hideTypingIndicator();
-        };
-
-        socket.onerror = function(error) {
-            console.error('WebSocket error:', error);
-            // 에러 발생 시 애니메이션 제거
-            hideTypingIndicator();
-            reject(error);
-        };
-    });
-}
 
 function disableInput() {
     document.getElementById('messageInput').disabled = true;
@@ -567,7 +602,7 @@ async function sendMessage() {
 // 세션 생성과 연결 동시에 수행
 async function createAndConnectNewSession(initialMessage) {
     try {
-        const response = await fetch(`${API_URL}/sessions`, {
+        const response = await apiCall(`${API_URL}/sessions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -660,7 +695,6 @@ function handleIncomingMessage(data) {
             appendMessage('ai', content);
         }
 
-
         scrollToBottom();
     } else if (data.type === 'end') {
         hideTypingIndicator();
@@ -741,27 +775,33 @@ async function startNewChat() {
 
     currentSessionId = null;
     
-    // 임시 웰컴 메시지에 특별한 클래스 추가
     document.getElementById('chatBox').innerHTML = 
         '<div class="message ai-message temporary-welcome"><div class="message-content">어떤 이야기를 하고 싶나요?</div></div>';
     
     try {
-        const response = await fetch(`${API_URL}/sessions`, {
+        console.log('Creating new session for userId:', userId);
+        const response = await apiCall(`${API_URL}/sessions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
             },
             credentials: 'include',
             body: JSON.stringify({ userId: userId })
         });
-        const result = await response.json();
         
-        if (response.ok) {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('New session created:', result);
+        
+        if (result.sessionId) {
             currentSessionId = result.sessionId;
             await fetchSessions();
 
             if (result.welcomeMessage) {
-                // 임시 웰컴 메시지 제거 후 실제 메시지로 교체
                 const tempWelcome = document.querySelector('.temporary-welcome');
                 if (tempWelcome) {
                     tempWelcome.remove();
@@ -772,7 +812,11 @@ async function startNewChat() {
             isEmptySession = true;
             updateNewChatButtonState();
 
+            console.log('Attempting WebSocket connection...');
             await connectWebSocket();
+            console.log('WebSocket connection established');
+        } else {
+            throw new Error('Session ID not received from server');
         }
     } catch (error) {
         console.error('Error in startNewChat:', error);
@@ -790,7 +834,7 @@ async function deleteSession() {
     if (!sessionToDelete) return;
 
     try {
-        const response = await fetch(`${API_URL}/sessions/${sessionToDelete}?userId=${userId}`, {
+        const response = await apiCall(`${API_URL}/sessions/${sessionToDelete}?userId=${userId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -860,7 +904,7 @@ async function logout() {
         }
 
         // 1. 백엔드 세션 클리어
-        await fetch(`${FLASK_URL}/auth/logout`, {
+        await apiCall(`${FLASK_URL}/auth/logout`, {
             method: 'POST',
             credentials: 'include'
         });
@@ -1046,9 +1090,3 @@ export {
     sendMessage,
     logout
 };
-
-// 페이지 로드 시 초기화
-document.addEventListener('DOMContentLoaded', async () => {
-    initializePage();
-    initializeEventListeners();
-});

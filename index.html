@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TAROYAKKI</title>
+    <title>TAROYAKI</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
     <link rel="stylesheet" href="tarotchat_style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Red+Rose:wght@300..700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/favicon_2.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <style>
         body { 
@@ -17,11 +21,15 @@
         }
     </style>
 </head>
+
 <body>
     <div id="mainContent">
         <div id="sidebar" class="expanded">
             <div id="TitleBox">
-                <div id="MainTitle">TAROYAKKI</div>
+                <div id="Maintitle">
+                    <div id="Mainlogo"></div>
+                    <div id="MainTitleText">TAROYAKI</div>
+                </div>
                 <button id="collapseBtn">
                     <span id="collapseBtnIcon"></span>
                 </button>
@@ -39,7 +47,9 @@
             </button>
         </div>
         <div id="collapsedSidebar" class="collapsed" style="display: none;">
-            <div id="collapsedlogo">T</div>
+            <div id="collapsedlogo">
+                <div id="collapsedlogoimg"></div>
+            </div>
             <button id="expandBtn">
                 <div id="expandBtnIcon"></div>
             </button>
@@ -65,6 +75,7 @@
                     <div class="modalAbody">
                         <div class="emptyspace"></div>
                         <div class="settingsbodytitle">계정 정보</div>
+                        <div id="userinfo2" class="settingsbodytext"></div>
                         <span id="userDetails" class="settingsbodytext"></span>
                         <div class="emptyspace"></div>
                         <div class="settingsbodytitle">데이터 관리</div>
@@ -81,17 +92,20 @@
         </div>
         <div id="profileModal" class="modalB">
             <div class="modalB-content">
+                <div id="userinfo1"></div>
                 <button id="settingbtnB">Setting</button>
                 <button id="logoutbtn">Logout</button>
             </div>
         </div>
         <div id="deleteSessionModal" class="modalC">
             <div class="modalC-content">
-            <span class="close">&times;</span>
-            <h2>세션 삭제 확인</h2>
-            <p>대화를 삭제할까요?</p>
-            <button id="cancelDelete">취소</button>
-            <button id="confirmDelete">삭제하기</button>
+                <div id="modalC-title">대화를 삭제하시겠습니까?</div>
+                <div class="divLine"></div>
+                <div id="modalC-text">삭제한 대화는 되돌릴 수 없습니다.</div>
+                <div id="modalC-btns">
+                    <button id="cancelDelete">취소</button>
+                    <button id="confirmDelete">삭제하기</button>
+                </div>
             </div>
         </div>
         <div id="serviceguide">
@@ -99,35 +113,36 @@
                 <div id="GuideTitleIcon"></div>
                 <div id="GuideTitleText">타로야끼에게 물어보는 방법</div>
             </div>
-            <div id="Guide1">
-                <div id="guide1title">내가 현재 처해 있는 상황과 고민을 자세히 작성할수록 리딩이 정확해져요.</div>
-                <div id="guide1p1">
-                    (X)연애운을 알려줘<br>(X)취직할 수 있을까?
+            <div id="Guidebody">
+                <div id="Betaguide">
+                    <div id="guide0title">베타테스트 중입니다.</div>
+                    <li class="g2li">로그아웃이 온전하게 되지 않는 문제가 있습니다. 사용을 마친 후 반드시 로그아웃을 해 주세요.</li>
+                    <li class="g2li">안내받은 URL을 외부에 배포하지 말아주세요.</li>
+                    <li class="g2li">문제가 발생한 경우 개발자 도구 콘솔(F12)과 함께 스크린샷을 보내 주시면 도움이 됩니다.</li>
                 </div>
-                <ul id="guide1p2">
-                    <li id="g1p2b1">면접본 두 곳에서 합격했는데, 하나는 대기업이고 나랑 잘 맞는 직무가 아니야. 다른 하나는 스타트업이지만 내가 잘 할 것 같은 직무야. 어느 기업을 고르는 게 좋을까?</li>
-                    <li id="g1p2b2">나는 프로덕트 디자이너로 취업을 준비 중인데, 올 하반기에 내가 원하는 기업에 취업할 수 있을지 궁금해.    </li>
-                </ul>
-            </div>
-            <div id="Guide2">
-                <div id="guide2title">추가적인 정보를 알고 싶다면 '조언'이나 '추가질문'을 질문해보아요.</div>
-                <div id="guide2p1">
-                    어쩌구<br>저쩌구
+                <div id="Guide1">
+                    <div id="guide1title">내가 현재 처해 있는 상황과 고민을 자세히 작성할수록 리딩이 정확해져요.</div>
+                    <div class="guidetext">(X) 연애운을 알려 줘.</br>(X) 취직할 수 있을까?</div>
+                    <div class="guidetext">(O) 면접본 두 곳에서 합격했는데, 하나는 대기업이고 나랑 잘 맞는 직무가 아니야. 다른 하나는 스타트업이지만 내가 잘 할 것 같은 직무야. 어느 기업을 고르는 게 좋을까?</div>
+                    <div class="guidetext">(O) 나는 프로덕트 디자이너로 취업을 준비 중인데, 올 하반기에 내가 원하는 기업에 취업할 수 있을지 궁금해.</div>
                 </div>
-                <ul id="guide2p2">
-                    <li id="g2p2b1">마 니</li>
-                    <li id="g2p2b2">서마터폰 중독이다</li>
-                </ul>
-            </div>
-            <div id="Guide3">
-                <div id="guide3title">대화가 너무 길어지면 답변이 부정확해질 수 있어요.</div>
-                <div id="guide3p1">
-                    대화가 길면 타로야끼는 초반 대화를 잘 기억하지 못해요.<br>최소한의 대화로 자신의 상황에 대해 최대한 많은 정보를 제공해 주세요.
+                <div id="Guide2">
+                    <div id="guide2title">타로야끼는 뽑은 카드를 한 번에 해석합니다. 각각의 카드 이미지나 해석 근거에 대해 궁금할 경우 상세한 해석을 추가 질문해주세요.</div>
+                    <li class="g2li">'card name'의 일반적 의미가 궁금해.</li>
+                    <li class="g2li">'card name'카드 이미지의 어떤 부분에서 이렇게 해석할 수 있는지 해석 근거가 궁금해.</li>
+                    <li class="g2li">'card name'카드를 '연애운/직업운/재물운...'로 볼 대는 어떻 해석하는지 궁금해.</li>
+                    <li class="g2li">'card name'이 말해줄 수 있는 현실적인 조언은 어떤 게 있을까?</li>
+                </div>
+                <div id="Guide3">
+                    <div id="guide3title">대화가 너무 길어지면 답변이 부정확해질 수 있어요.</div>
+                    <div class="guidetext">최소한의 대화로 자신의 상황에 대해 최대한 많은 정보를 제공해 주세요.</div>
+                    <div class="guidetext">대화가 길어진다면 새로운 세션에서 이야기를 나눠 보세요.</div>
                 </div>
             </div>
         </div>
         <div id="contentWrapper">
             <div id="chatBox"></div>
+                <button id="LoginBtn">LOGIN</button>
                 <button id="ProfileBtn"></button>
             <div id="inputArea">
                 <input type="text" id="messageInput" placeholder="고민상황을 자유롭게 물어보세요.">
@@ -147,15 +162,6 @@
           }
         }
     </script>
-    <script src="config.js"></script>
-    <script type="module" src="tarotchat_service.js"></script>
-    <script type="module">
-        import { initializePage, initializeEventListeners, startNewChat, sendMessage, logout } from './tarotchat_service.js';
-        
-        // Make functions globally available
-        window.startNewChat = startNewChat;
-        window.sendMessage = sendMessage;
-        window.logout = logout;
-    </script>
+    <script type="module" src="/taroyaki_service.js"></script>
 </body>
 </html>

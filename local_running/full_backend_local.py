@@ -4,7 +4,7 @@
 from langchain_aws import ChatBedrock
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain.chains import ConversationChain
-# from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferMemory
 
 
 class ConsoleCallbackHandler(BaseCallbackHandler):
@@ -35,8 +35,8 @@ chain = ConversationChain(llm=model, memory=memory)
 # 대화 루프
 while True:
     user_input = input("\nYou: ")
-    if user_input.lower() in ['exit', 'quit', 'bye']:
-        print("Goodbye!")
+    if user_input.lower() in ['종료', 'quit']:
+        print("대화를 종료합니다.")
         break
     
     print("\nAssistant: ", end='')

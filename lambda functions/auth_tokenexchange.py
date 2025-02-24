@@ -1,15 +1,30 @@
 import json
 import uuid
 import time
-from session_manager import SessionManager
 from auth_utils import *
 import base64
 from jose import jwt
 import requests
 import traceback
 
+def create_auth_response(body, cookies=None):
+    response = {
+        'statusCode': 200 if body.get('success') else 400,
+        'headers': {
+            'Access-Control-Allow-Origin': 'https://d256c0vgw8wwge.cloudfront.net',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Allow-Methods': 'POST,OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'
+        },
+        'body': json.dumps(body)
+    }
+    
+    if cookies:
+        response['headers']['Set-Cookie'] = cookies
+        
+    return response
+
 def lambda_handler(event, context):
-    session_manager = SessionManager()
     print('Received event:', json.dumps(event, indent=2))
     print('Environment variables:', {
         'COGNITO_DOMAIN': COGNITO_DOMAIN,
@@ -18,7 +33,7 @@ def lambda_handler(event, context):
     })
 
     try:
-        # 1. 요청 바디 파싱 및 검증
+        # 1. 요청 바디 파싱 및 검증 (이전과 동일)
         if isinstance(event, dict):
             code = event.get('code')
             if not code and event.get('body'):
@@ -34,9 +49,17 @@ def lambda_handler(event, context):
 
         # 2. 토큰 교환 준비
         token_endpoint = f"{COGNITO_DOMAIN}/oauth2/token"
-        auth_header = base64.b64encode(
-            f"{CLIENT_ID}:{CLIENT_SECRET}".encode('utf-8')
-        ).decode('utf-8')
+        
+        # Auth 헤더 생성 과정 로깅
+        auth_header_raw = f"{CLIENT_ID}:{CLIENT_SECRET}"
+        print('Auth header components:')
+        print(f'- Length of CLIENT_ID: {len(CLIENT_ID)}')
+        print(f'- Length of CLIENT_SECRET: {len(CLIENT_SECRET)}')
+        print(f'- Raw auth header length: {len(auth_header_raw)}')
+        
+        auth_header = base64.b64encode(auth_header_raw.encode('utf-8')).decode('utf-8')
+        print(f'- Encoded auth header length: {len(auth_header)}')
+        print(f'- First 10 chars of encoded header: {auth_header[:10]}...')
         
         data = {
             'grant_type': 'authorization_code',
@@ -45,14 +68,20 @@ def lambda_handler(event, context):
             'redirect_uri': REDIRECT_URI
         }
 
-        print('Token exchange request:', {
-            'endpoint': token_endpoint,
-            'data': {**data, 'code': code[:10] + '...'},
-            'headers': {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': 'Basic <hidden>'
-            }
-        })
+        # 요청 세부사항 로깅
+        print('Token exchange request details:')
+        print(f'- Endpoint: {token_endpoint}')
+        print(f'- Request data: {json.dumps({**data, "code": code[:10] + "..."})}')
+        print('- Headers:')
+        print('  * Content-Type: application/x-www-form-urlencoded')
+        print('  * Authorization: Basic <first 10 chars>:', f'Basic {auth_header[:10]}...')
+
+        print('Token exchange request validation:')
+        print(f'COGNITO_DOMAIN: {COGNITO_DOMAIN}')
+        print(f'Token endpoint: {token_endpoint}')
+        print(f'Redirect URI: {REDIRECT_URI}')
+        print(f'Code length: {len(code) if code else 0}')
+        print(f'Request data: {json.dumps({k:v if k != "code" else v[:10]+"..." for k,v in data.items()})}')
 
         # 3. 토큰 교환 요청
         try:
@@ -64,12 +93,24 @@ def lambda_handler(event, context):
                 },
                 data=data
             )
-            print('Token exchange response status:', response.status_code)
-            print('Token exchange response headers:', dict(response.headers))
-            
+            print('\nToken exchange response:')
+            print(f'- Status code: {response.status_code}')
+            print(f'- Headers: {dict(response.headers)}')
+            print(f'- Raw response body: {response.text}')
+            print('Token exchange response validation:')
+            print(f'Response status: {response.status_code}')
+            print(f'Response headers: {dict(response.headers)}')
+            print(f'Response content length: {len(response.content)}')
+            try:
+                response_text = response.text
+                print(f'Raw response text: {response_text[:200]}...')  # 앞부분만 출력
+            except Exception as e:
+                print(f'Error reading response text: {str(e)}')
+
+
             if not response.ok:
-                print('Token exchange error response:', response.text)
                 error_detail = json.loads(response.text) if response.text else {}
+                print(f'- Error details: {error_detail}')
                 return create_auth_response({
                     'error': 'Token exchange failed',
                     'details': error_detail
@@ -78,8 +119,7 @@ def lambda_handler(event, context):
         except requests.RequestException as e:
             print('Request error:', str(e))
             return create_auth_response({'error': 'Failed to connect to Cognito'}, None)
-
-        # 4. 응답 처리
+         # 4. 응답 처리
         try:
             tokens = response.json()
             print('Received tokens with keys:', list(tokens.keys()))
@@ -118,51 +158,25 @@ def lambda_handler(event, context):
             print('Error decoding ID token:', str(e))
             return create_auth_response({'error': 'Failed to decode ID token'}, None)
 
-        # 6. 세션 생성
-        try:
-            session_id = str(uuid.uuid4())
-            session_data = {
-                'name': user_info.get('nickname') or user_info.get('email'),
-                'email': user_info.get('email'),
-                'sub': user_info.get('sub')
-            }
-            print('Creating session with ID:', session_id)
-            print('Session user data:', {
-                'name': session_data['name'],
-                'email': session_data['email'],
-                'sub': session_data['sub'][:5] + '...'
-            })
-            print('Session tokens preview:', {
-                'access_token': tokens['access_token'][:20] + '...',
-                'token_expiry': int(time.time() + tokens['expires_in'])
-            })
-
-            session_manager.create_session(
-                session_id=session_id,
-                user_info=session_data,
-                tokens={
-                    'access_token': tokens['access_token'],
-                    'refresh_token': tokens['refresh_token'],
-                    'token_expiry': int(time.time() + tokens['expires_in'])
-                }
-            )
-            print('Session successfully created in DynamoDB')
-
-        except Exception as e:
-            print('Error creating session:', str(e))
-            return create_auth_response({'error': 'Failed to create session'}, None)
-
         # 7. 성공 응답
         response = {
             'success': True,
             'access_token': tokens['access_token'],
+            'id_token': tokens['id_token'],
+            'refresh_token': tokens['refresh_token'],
             'expires_in': tokens['expires_in']
         }
-        print('Preparing auth response with session ID:', session_id)
-        final_response = create_auth_response(response, session_id)
-        print('Final response headers:', final_response['headers'])
-        print('Final response status code:', final_response['statusCode'])
-        return final_response
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Access-Control-Allow-Origin': 'https://d256c0vgw8wwge.cloudfront.net',
+                'Access-Control-Allow-Credentials': 'true',
+                'Access-Control-Allow-Methods': 'POST,OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'
+            },
+            'body': json.dumps(response)
+        }
         
     except Exception as e:
         print('Unexpected error:', str(e))
