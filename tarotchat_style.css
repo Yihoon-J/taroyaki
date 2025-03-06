@@ -22,7 +22,7 @@ button {
   padding: 10px 0; 
   overflow-y: auto;
   overflow-x: hidden;
-  border-right: 1px solid #E0E0E0;
+  border-right: 1px solid rgba(206, 200, 186, 1);
 }
 
 #sidebar.expanded{
@@ -104,8 +104,10 @@ button {
 #collapseBtnIcon {
   width: 24px;
   height: 24px;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsidebar%2C+size%3D40%2C+state%3Ddefault.png');
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/side-def.png');
   transition: 0.3s ease;
 }
 
@@ -114,13 +116,15 @@ button {
 background-color: #E2DBCC;
 }
 
+/* 접기 버튼 호버 시 아이콘 */
 #collapseBtn:hover #collapsedBtnIcon{
   display: block;
   width: 40px;
   height: 40px;
   background-size: contain;
   background-repeat: no-repeat;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsidebar%2C+size%3D40%2C+state%3Dhover.png');
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/side-hov.png');
 }
 
 
@@ -128,7 +132,7 @@ background-color: #E2DBCC;
 .divLine{
   height: 1px;
   width: 100%;
-  background-color: #E0E0E0;
+  background-color: rgba(206, 200, 186, 1);
 }
 
 /* 새 대화 시작 버튼 */
@@ -148,14 +152,14 @@ background-color: #E2DBCC;
   font-weight: 600;
   padding: 14px 24px;
   margin: 16px 20px;
-  color: #6A6456;
+  color: #7d7d7d;
   transition: background-color 0.3s ease;
 }
 
 /* 새 대화 시작 버튼 호버 */
 #newChatButton:hover {
   background-color: #E2DBCC;
-  color: #6A6456;
+  color: #646464;
 }
 
 /* 새 대화 시작 버튼 비활성화 */
@@ -168,14 +172,19 @@ background-color: #E2DBCC;
 #newChatButtonIcon {
   width: 24px;
   height: 24px;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dnew_chat%2C+size%3D40%2C+state%3Ddefault.png');
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/new-def.png');
   background-repeat: no-repeat;
   transition: 0.3s ease;
 }
 
 #newChatButton:hover #newChatButtonIcon{
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dnew_chat%2C+size%3D40%2C+state%3Dhover.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/new-hov.png');
 }
 
 /* 세션 목록 박스 */
@@ -231,6 +240,8 @@ background-color: #E2DBCC;
   background-color: #38383A;
   color: #EBE4D4;
 }
+
+/* 삭제 버튼 기본 상태 */
 .delete-button {
   width: 13px;
   height: 13px;
@@ -243,21 +254,7 @@ background-color: #E2DBCC;
   transition: 0.3s ease;
 }
 
-/* 삭제 아이콘 호버 */
-.delete-button:hover {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 13px;
-  height: 13px;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dexit%2C+size%3D20%2C+state%3Dhover.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  opacity: 1;
-}
-
-/* 세션 마우스오버 시 삭제 아이콘 */
+/* 1. 세션 마우스오버 시 삭제 아이콘 (기본) */
 .session-item:hover .delete-button {
   display: inline-flex;
   align-items: center;
@@ -265,21 +262,35 @@ background-color: #E2DBCC;
   width: 13px;
   height: 13px;
   opacity: 1;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dexit%2C+size%3D20%2C+state%3Ddefault.png');
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-def.png');
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
 }
 
-/* 현재 세션에서 삭제 아이콘 호버 시 */
-.session-item:active .delete-button:hover {
+/* 3. 삭제 버튼 직접 호버 시 (호버1) */
+.session-item:hover .delete-button:hover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-hov.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 1;
+}
+
+/* 2. 현재 선택된 세션(.active)의 삭제 버튼 호버 시 (호버2) */
+.session-item.active:hover .delete-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 13px;
   height: 13px;
   opacity: 1;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dexit%2C+size%3D20%2C+state%3Dactive_2.png');
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-hov2.png');
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -303,7 +314,7 @@ background-color: #E2DBCC;
   font-size: 16px;
   font-weight: 600;
   text-align: left;
-  color: #242529;
+  color: #7d7d7d;
   transition: background-color 0.3s ease;
   z-index: 1;
 }
@@ -311,7 +322,7 @@ background-color: #E2DBCC;
 /* 설정 버튼 호버 시 */
 #SettingsButton:hover{
   background-color: #E2DBCC;
-  color: #242529;
+  color: #646464;
 }
 
 /* 설정 버튼 내 아이콘 */
@@ -320,8 +331,9 @@ background-color: #E2DBCC;
   width: 24px;
   height: 24px;
   background-size: contain;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsetting%2C+size%3D24%2C+state%3Ddefault.png');
   background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/set-def.png');
   transition: 0.3s ease;
 }
 
@@ -330,8 +342,9 @@ background-color: #E2DBCC;
   width: 24px;
   height: 24px;
   background-size: contain;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsetting%2C+size%3D24%2C+state%3Dhover.png');
   background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/set-hov.png');
 }
 
 #collapsedlogo{
@@ -364,6 +377,7 @@ background-color: #E2DBCC;
   border-radius: 12px;
   background-size: contain;
   background-repeat: no-repeat;
+  background-position: center;
   background-color: transparent;
 }
 
@@ -384,20 +398,24 @@ background-color: #E2DBCC;
 #expandBtnIcon{
   width: 21px;
   height: 18px;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsidebar%2C+size%3D40%2C+state%3Ddefault.png');
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/side-def.png');
 }
 
 /* 사이드바 접었을 때 - 펼치기 버튼 - 호버 */
 #expandBtn:hover #expandBtnIcon{
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsidebar%2C+size%3D40%2C+state%3Dhover.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/side-hov.png');
   transition: 0.3s ease;
 }
 
 /* 사이드바 접었을 때 - 새 대화 버튼 */
 #collapsedNewChatBtn{
   display: inline-flex;
-  align-items: center;
   width: 40px;
   height: 40px;
 }
@@ -409,14 +427,19 @@ background-color: #E2DBCC;
 #collapsedNewChatBtnIcon {
   width: 21px;
   height: 21px;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dnew_chat%2C+size%3D40%2C+state%3Ddefault.png');
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/new-def.png');
   transition: 0.3s ease;
 }
 
 /* 사이드바 접었을 때 - 새 대화 버튼 - 호버 */
 #collapsedNewChatBtn:hover #collapsedNewChatBtnIcon{
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dnew_chat%2C+size%3D40%2C+state%3Dhover.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/new-hov.png');
 }
 
 /* 사이드바 접었을 때 - 설정 버튼 */
@@ -434,14 +457,19 @@ background-color: #E2DBCC;
 #collapsedSettingsBtnIcon{
   width: 21px;
   height: 21px;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsetting%2C+size%3D40%2C+state%3Ddefault.png');
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/set-def.png');
   transition: 0.3s ease;
 }
 
 /* 사이드바 접었을 때 - 설정 버튼 - 호버 */
 #collapsedSettingsBtn:hover #collapsedSettingsBtnIcon{
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dsetting%2C+size%3D40%2C+state%3Dhover.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/set-def.png');
 }
 
 /* 가이드 영역 */
@@ -456,7 +484,7 @@ background-color: #E2DBCC;
   padding-right: 20px; 
   overflow-y: auto;
   overflow-x: hidden;
-  border-right: 1px solid #E0E0E0;
+  border-right: 1px solid rgba(206, 200, 186, 1);
 }
 
 /* "질문 가이드" */
@@ -479,8 +507,10 @@ background-color: #E2DBCC;
 #GuideTitleIcon{
   width: 20px;
   height: 20px;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
-  background-image:url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dguide%2C+size%3D24%2C+state%3Ddefault.png')
+  background-image:url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/guide-def.png')
 }
 
 #Guidebody{
@@ -501,7 +531,7 @@ background-color: #E2DBCC;
   font-size: 14px;
   font-weight: 600;
   line-height: 150%;
-  color: #242529;
+  color: #e21f1f;
   margin-bottom: 20px;
 }
 
@@ -612,14 +642,17 @@ background-color: #E2DBCC;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/send_default.png');
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/send-def.png');
 }
 
 #SendButton:disabled #SendButtonIcon {
   cursor: not-allowed;
   width: 40px;
   height: 40px;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/send_block.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/send-blk.png');
 }
 
 /* 대화 영역 */
@@ -630,7 +663,7 @@ background-color: #E2DBCC;
   width: 100%;
   /* absolute 대신 다음과 같이 변경 */
   position: relative;
-  height: calc(100vh - 156px); /* 100vh에서 입력창 높이(73px), 하단 여백(50px), 경고 메시지 높이(약 33px), 상단 여백(100px) 제외 */
+  height: calc(100vh - 125px); /* 100vh에서 입력창 높이(73px), 하단 여백(50px), 경고 메시지 높이(약 33px), 상단 여백(100px) 제외 */
   padding: 70px 0 0px 0; /* 상단 여백, 하단에 입력창 + 경고메시지 공간 확보 */
   overflow-y: auto;
   box-sizing: border-box;
@@ -643,11 +676,12 @@ background-color: #E2DBCC;
   max-width: 490px;
   padding: 12px 20px;
   margin-top: 32px;
-  margin-left: 70px;
+  margin-left: 100px;
   margin-right: 70px;
   border-radius: 16px;
   word-wrap: break-word;
   font-weight: 500;
+  line-height: 150%;
 }
 .ai-message {
   align-self: flex-start;
@@ -655,6 +689,20 @@ background-color: #E2DBCC;
   background-color: #E8E5DD;
   position: relative;
 }
+
+.ai-message::before {
+  content: "";
+  position: absolute;
+  left: -40px;
+  top: 5px;
+  width: 30px;
+  height: 37.09px;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/ai-indicator.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
 .user-message {
   align-self: flex-end;
   color: #242529;
@@ -718,6 +766,221 @@ background-color: #E2DBCC;
   -webkit-box-shadow: none;
 }
 
+
+/* 타로 카드 뽑기 버튼 */
+#drawTarotBtn {
+  position: absolute;
+  bottom: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  background-color: #38383A;
+  color: #EBE4D4;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s ease;
+  z-index: 2;
+}
+
+#drawTarotBtn:hover {
+  background-color: #242529;
+}
+
+#drawTarotBtnIcon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/taroyaki-icon.png');
+}
+
+/* Bottom Sheet */
+.bottom-sheet {
+  position: fixed;
+  bottom: -300px; /* 초기에는 화면 밖에 위치 */
+  left: 0;
+  width: 100%;
+  z-index: 10;
+  transition: bottom 0.3s ease-in-out;
+  max-height: 300px;
+}
+
+.bottom-sheet.open {
+  bottom: 0;
+}
+
+.bottom-sheet-content {
+  background-color: #F9F5ED;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  box-shadow: 0px -4px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px 20px 10px 20px;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.bottom-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.bottom-sheet-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #242529;
+}
+
+.bottom-sheet-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-sheet-close-icon {
+  width: 16px;
+  height: 16px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-def.png');
+}
+
+.bottom-sheet-close-btn:hover .bottom-sheet-close-icon {
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-hov.png');
+}
+
+.tarot-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.tarot-buttons button {
+  padding: 10px 20px;
+  background-color: #38383A;
+  color: #F9F5ED;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.tarot-buttons button:hover {
+  background-color: #242529;
+}
+
+.tarot-result-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#tarotResult {
+  flex: 1;
+  min-height: 30px;
+  padding: 10px;
+  text-align: center;
+  background-color: transparent;
+  border: 0px transparent;
+  resize: none;
+  outline: none;
+  box-shadow: none;
+  -webkit-box-shadow: none;
+  font-family: 'Pretendard Variable';
+  font-size: 14px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+#tarotResult:empty:before {
+  content: attr(placeholder);
+  color: #8E8E93;
+}
+
+.tarot-result-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#copyResultBtn {
+  width: 40px;
+  height: 40px;
+  background-color: #E8E5DD;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.3s ease;
+}
+
+#copyResultBtn:hover {
+  background-color: #D5D1C8;
+}
+
+#copyResultBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#copyResultIcon {
+  width: 20px;
+  height: 20px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/taroyaki-icon.png');
+}
+
+.toast-message {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background-color: rgba(56, 56, 58, 0.9);
+  color: #EBE4D4;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1000;
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.toast-message.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
 #warningmsg {
   position: absolute;
   bottom: 0px;
@@ -733,20 +996,99 @@ background-color: #E2DBCC;
   color: #7D7D7D;
 }
 
-#LoginBtn{
+#beforelogin {
   position: absolute;
-  bottom: 300px;
-  width: 60px;
-  height: auto;
+  top: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 10px 20px 50px 20px;
   text-align: center;
-  font-size: 14px;
-  padding: 6px;
-  background-color: #242529;
-  color: #EBE4D4;
-  border-radius: 60px;
-  border: 0px transparent;
 }
 
+#bl_logo {
+  width: 51.61px;
+  height: 62.64px;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/taroyaki-icon.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#bl_title {
+  font-family: "Red Rose", serif;
+  font-size: 70px;
+  font-weight: 700;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  color: #38383A;
+  margin-bottom: 20px;
+  line-height: 1.1;
+}
+
+#bl_subtitle {
+  font-size: 20px;
+  font-weight: 400;
+  text-align: center;
+  color: #38383A;
+  margin-bottom: 40px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.4;
+  max-width: 500px;
+}
+
+#example_questions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 470px;
+  margin-bottom: 40px;
+  margin-left: auto;
+  margin-right: auto;
+  gap: 24px;
+}
+
+#extext1, #extext2, #extext3 {
+  width: auto;
+  max-width: 100%;
+  display: inline-block;
+  padding: 18px 30px;
+  border-radius: 12px;
+  background-color: #38383A;
+  color: #F9F5ED;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+#extext2{
+  rotate: -6.08deg;
+}
+
+#extext3{
+  rotate: 0.51deg;
+}
+
+#LoginBtn {
+  width: 400px;
+  height: 60px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: transparent;
+  border: 0px transparent;
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/kakao_login_large_wide.png');
+  cursor: pointer;
+}
 
 /* 프로필 모달 내 설정버튼 & 로그아웃버튼 */
 #settingbtnB, #logoutbtn {
@@ -821,14 +1163,16 @@ background-color: #E2DBCC;
 #settingscloseicon {
   width: 18px;
   height: 18px;
+  background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dexit%2C+size%3D20%2C+state%3Ddefault.png');
+
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-def.png');
   transition: 0.3s ease;
 }
 
 #settingscloseicon:hover {
-  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/name%3Dexit%2C+size%3D20%2C+state%3Dhover.png');
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-hov.png');
 }
 
 #modalAtitle{
@@ -860,6 +1204,7 @@ background-color: #E2DBCC;
   height: 60px;
 }
 /* 프로필 모달 전체 */
+/* momdalB 배경 투명하게 표시되는 이슈 있음 */
 .modalB {
   display: none;
   position: fixed;

@@ -116,7 +116,6 @@
             <div id="Guidebody">
                 <div id="Betaguide">
                     <div id="guide0title">베타테스트 중입니다.</div>
-                    <li class="g2li">로그아웃이 온전하게 되지 않는 문제가 있습니다. 사용을 마친 후 반드시 로그아웃을 해 주세요.</li>
                     <li class="g2li">안내받은 URL을 외부에 배포하지 말아주세요.</li>
                     <li class="g2li">문제가 발생한 경우 개발자 도구 콘솔(F12)과 함께 스크린샷을 보내 주시면 도움이 됩니다.</li>
                 </div>
@@ -130,7 +129,7 @@
                     <div id="guide2title">타로야끼는 뽑은 카드를 한 번에 해석합니다. 각각의 카드 이미지나 해석 근거에 대해 궁금할 경우 상세한 해석을 추가 질문해주세요.</div>
                     <li class="g2li">'card name'의 일반적 의미가 궁금해.</li>
                     <li class="g2li">'card name'카드 이미지의 어떤 부분에서 이렇게 해석할 수 있는지 해석 근거가 궁금해.</li>
-                    <li class="g2li">'card name'카드를 '연애운/직업운/재물운...'로 볼 대는 어떻 해석하는지 궁금해.</li>
+                    <li class="g2li">'card name'카드를 '연애운/직업운/재물운...'로 볼 때는 어떻게 해석하는지 궁금해.</li>
                     <li class="g2li">'card name'이 말해줄 수 있는 현실적인 조언은 어떤 게 있을까?</li>
                 </div>
                 <div id="Guide3">
@@ -141,14 +140,45 @@
             </div>
         </div>
         <div id="contentWrapper">
-            <div id="chatBox"></div>
-                <button id="LoginBtn">LOGIN</button>
+            <div id="chatBox">
+            </div>
                 <button id="ProfileBtn"></button>
+                <div id="beforelogin">
+                    <div id="bl_logo"></div>
+                    <div id="bl_title">TAROYAKI</div>
+                    <div id="bl_subtitle">AI 타로 선생님과 함께 다양한 상황에 따른 타로 리딩을 공부해요</div>
+                    <div id="example_questions">
+                        <div id="extext1">이번 하반기 연애운이 궁금해요.</div>
+                        <div id="extext2">A와 B중에 무엇을 선택하는게 좋을까요?</div>
+                        <div id="extext3">이번에 면접 본 두 곳 중에 어디를 선택하는게 좋을 지 궁금해요.</div>
+                    </div>
+                    <button id="LoginBtn"></button>
+                </div>
+                <button id="drawTarotBtn">
+                    <div id="drawTarotBtnIcon"></div>
+                    <span id="drawTarotBtnText">카드 뽑기</span>
+                </button>
             <div id="inputArea">
                 <input type="text" id="messageInput" placeholder="고민상황을 자유롭게 물어보세요.">
                 <button id="SendButton">
                     <div id="SendButtonIcon"></div>
                 </button>
+            </div>
+            <div id="tarotBottomSheet" class="bottom-sheet">
+                <div class="bottom-sheet-content">
+                    <div class="bottom-sheet-body">
+                        <div class="tarot-buttons">
+                            <button id="drawOneBtn">1장 뽑기</button>
+                            <button id="drawThreeBtn">3장 뽑기</button>
+                        </div>
+                        <div class="tarot-result-container">
+                            <div id="tarotResult" contenteditable="false" placeholder="카드를 뽑아주세요"></div>
+                            <button id="copyResultBtn" disabled>
+                                <div id="copyResultIcon"></div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div id="warningmsg">
                 <p>타로야끼는 아직 익히는 중이에요. 답변에서 실수가 있을 수 있어요.</p>
@@ -163,5 +193,6 @@
         }
     </script>
     <script type="module" src="/taroyaki_service.js"></script>
+    <div id="toastMessage" class="toast-message">복사되었습니다</div>
 </body>
 </html>

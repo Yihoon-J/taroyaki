@@ -7,7 +7,13 @@ const config = {
     restEndpoint: "https://blgg29wto5.execute-api.us-east-1.amazonaws.com/product",
     wsEndpoint: "wss://tt0ikgb3sd.execute-api.us-east-1.amazonaws.com/production/",
     logoutRedirectUri: "https://dje3vsz99xjr1.cloudfront.net/index.html",
-    tokenRefreshThreshold: 5 * 60
+    tokenRefreshThreshold: 5 * 60,
+    sessionDuration: 3 * 60, // 3분
+    tokenExpirations: {
+        id: 60 * 60,     // 60분
+        access: 60 * 60,  // 60분
+        refresh: 5 * 24 * 60 * 60  // 5일
+    }
 };
 
 let userId;
@@ -21,6 +27,38 @@ let currentSessionId = null;
 let socket = null;
 let sessionLoadingAnimation = null;
 
+// 타로 카드 목록 정의
+const tarotCards = [
+    // 메이저 아르카나 (22장)
+    "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
+    "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
+    "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
+    "The Devil", "The Tower", "The Star", "The Moon", "The Sun",
+    "Judgement", "The World",
+    
+    // 마이너 아르카나 - 완드 (14장)
+    "Ace of Wands", "Two of Wands", "Three of Wands", "Four of Wands", "Five of Wands",
+    "Six of Wands", "Seven of Wands", "Eight of Wands", "Nine of Wands", "Ten of Wands",
+    "Page of Wands", "Knight of Wands", "Queen of Wands", "King of Wands",
+    
+    // 마이너 아르카나 - 컵스 (14장)
+    "Ace of Cups", "Two of Cups", "Three of Cups", "Four of Cups", "Five of Cups",
+    "Six of Cups", "Seven of Cups", "Eight of Cups", "Nine of Cups", "Ten of Cups",
+    "Page of Cups", "Knight of Cups", "Queen of Cups", "King of Cups",
+    
+    // 마이너 아르카나 - 소드 (14장)
+    "Ace of Swords", "Two of Swords", "Three of Swords", "Four of Swords", "Five of Swords",
+    "Six of Swords", "Seven of Swords", "Eight of Swords", "Nine of Swords", "Ten of Swords",
+    "Page of Swords", "Knight of Swords", "Queen of Swords", "King of Swords",
+    
+    // 마이너 아르카나 - 펜타클 (14장)
+    "Ace of Pentacles", "Two of Pentacles", "Three of Pentacles", "Four of Pentacles", "Five of Pentacles",
+    "Six of Pentacles", "Seven of Pentacles", "Eight of Pentacles", "Nine of Pentacles", "Ten of Pentacles",
+    "Page of Pentacles", "Knight of Pentacles", "Queen of Pentacles", "King of Pentacles"
+];
+
+// 타로 카드 뽑기 관련 변수와 함수
+let drawnCards = [];
 
 function handleLogin() {
     const loginUrl = `${config.domain}/login?response_type=code&client_id=${config.clientId}&redirect_uri=${config.redirectUri}`;
@@ -68,33 +106,88 @@ async function getUserInfo(token) {
     return JSON.parse(userData.body);
 }
 
-async function handleAuthenticationFlow() {
+async function authenticatedFetch(url, options = {}) {
+    let retryCount = 0;
+    const MAX_RETRIES = 1;
 
+    while (retryCount <= MAX_RETRIES) {
+        try {
+            const isValid = await TokenManager.validateTokenSet();
+            if (!isValid) {
+                throw new Error('Token validation failed');
+            }
+
+            const accessToken = localStorage.getItem('access_token');
+            const authenticatedOptions = {
+                ...options,
+                headers: {
+                    ...options.headers,
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            };
+
+            const response = await fetch(url, authenticatedOptions);
+            
+            if (response.status === 401 && retryCount < MAX_RETRIES) {
+                retryCount++;
+                continue;
+            }
+
+            return response;
+        } catch (error) {
+            if (retryCount === MAX_RETRIES) {
+                await handleLogout();
+                throw error;
+            }
+            retryCount++;
+        }
+    }
+}
+
+async function handleAuthenticationFlow() {
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const authCode = urlParams.get('code');
 
-        if (!authCode) return;
+        if (!authCode) return false;
 
         const tokenData = await getToken(authCode);
-        const token = tokenData.id_token;
-        localStorage.setItem('auth_token', token);
+        
+        // URL에서 인증 코드 제거
+        window.history.replaceState({}, document.title, window.location.pathname);
 
-        const loginbutton = document.getElementById('LoginBtn');
-        loginbutton.style.display = "none";
+        const beforelogin = document.getElementById('beforelogin');
+        if (beforelogin) beforelogin.style.display = "none";
+        
         showSessionLoadingIndicator();
 
-        const userInfo = await getUserInfo(token);
-        console.log('userInfo:', userInfo)
-        document.getElementById('userinfo1').innerText = 
-            `${userInfo.email}`;
-            document.getElementById('userinfo2').innerText = 
-            `${userInfo.email}`;
+        // userId 설정
+        const tokenPayload = parseJwt(tokenData.id_token);
+        if (tokenPayload?.sub) {
+            userId = tokenPayload.sub;
+            localStorage.setItem('userId', userId);
+        }
+
+        const userInfo = await getUserInfo(tokenData.id_token);
+        document.getElementById('userinfo1').innerText = userInfo.email;
+        document.getElementById('userinfo2').innerText = userInfo.email;
         updateProfileButton(userInfo);
+
+        // UI 초기화
+        initializeEventListeners();
+        if (userId) {
+            await fetchSessions(userId);
+        }
+
+        // 세션 체크 초기화
+        initializeSessionCheck();
         
+        return true;
+
     } catch (error) {
         console.error('Authentication error:', error);
         document.getElementById('userinfo').innerText = 'Error fetching user info.';
+        return false;
     }
 }
 
@@ -109,6 +202,51 @@ function parseJwt(token) {
     } catch (e) {
         console.error('Token parsing failed:', e);
         return null;
+    }
+}
+
+class TokenManager {
+    static REFRESH_THRESHOLD = 10 * 60; // 10분으로 증가
+
+    static getTokenExpiration(token) {
+        const decoded = parseJwt(token);
+        return decoded ? decoded.exp * 1000 : 0; // milliseconds로 변환
+    }
+
+    static async validateTokenSet() {
+        const idToken = localStorage.getItem('auth_token');
+        const accessToken = localStorage.getItem('access_token');
+        const refreshToken = localStorage.getItem('refresh_token');
+
+        if (!idToken || !accessToken || !refreshToken) {
+            return false;
+        }
+
+        const now = Date.now();
+        const idExpiration = this.getTokenExpiration(idToken);
+        const accessExpiration = this.getTokenExpiration(accessToken);
+        const refreshExpiration = this.getTokenExpiration(refreshToken);
+
+        // Refresh 토큰이 만료된 경우
+        if (now >= refreshExpiration) {
+            await handleLogout();
+            return false;
+        }
+
+        // ID 또는 Access 토큰이 만료 임박한 경우
+        if (now >= idExpiration - this.REFRESH_THRESHOLD * 1000 ||
+            now >= accessExpiration - this.REFRESH_THRESHOLD * 1000) {
+            try {
+                await refreshTokens(refreshToken);
+                return true;
+            } catch (error) {
+                console.error('Token refresh failed:', error);
+                await handleLogout();
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
@@ -549,6 +687,8 @@ sessionstyle.textContent = `
     
     .session-item.loading {
         pointer-events: none;
+        background-color: #38383A;
+        color: #EBE4D4;
         opacity: 0.7;
     }
     
@@ -775,6 +915,185 @@ function handleSidebarDisplay() {
     }
 }
 
+function initializeTarotDrawing() {
+    const drawTarotBtn = document.getElementById('drawTarotBtn');
+    const tarotBottomSheet = document.getElementById('tarotBottomSheet');
+    const drawOneBtn = document.getElementById('drawOneBtn');
+    const drawThreeBtn = document.getElementById('drawThreeBtn');
+    const tarotResult = document.getElementById('tarotResult');
+    const copyResultBtn = document.getElementById('copyResultBtn');
+    const chatBox = document.getElementById('chatBox');
+    
+    // 뽑기 버튼 클릭 시 bottom sheet 열기
+    if (drawTarotBtn) {
+        drawTarotBtn.addEventListener('click', () => {
+            openTarotBottomSheet();
+        });
+    }
+    
+    // 외부 클릭 시 bottom sheet 닫기 (HTML 구조에 맞게 수정)
+    document.addEventListener('click', (event) => {
+        if (tarotBottomSheet && tarotBottomSheet.classList.contains('open')) {
+            const bottomSheetContent = tarotBottomSheet.querySelector('.bottom-sheet-content');
+            if (bottomSheetContent && !bottomSheetContent.contains(event.target) && 
+                event.target !== drawTarotBtn && 
+                !drawTarotBtn.contains(event.target)) {
+                closeTarotBottomSheet();
+            }
+        }
+    });
+    
+    // 1개 뽑기 버튼 클릭 이벤트
+    if (drawOneBtn) {
+        drawOneBtn.addEventListener('click', () => {
+            const card = drawRandomCards(1);
+            displayDrawnCards(card);
+        });
+    }
+    
+    // 3개 뽑기 버튼 클릭 이벤트
+    if (drawThreeBtn) {
+        drawThreeBtn.addEventListener('click', () => {
+            const cards = drawRandomCards(3);
+            displayDrawnCards(cards);
+        });
+    }
+    
+    // 복사 버튼 클릭 이벤트 (div 요소에 맞게 수정)
+    if (copyResultBtn) {
+        copyResultBtn.addEventListener('click', () => {
+            copyToClipboard(); // 매개변수 제거, 함수 내에서 직접 textContent 참조
+        });
+    }
+    
+    // 결과 내용이 변경될 때 복사 버튼 활성화/비활성화
+    if (tarotResult) {
+        const observer = new MutationObserver(() => {
+            updateCopyButtonState();
+        });
+        
+        observer.observe(tarotResult, { 
+            attributes: true, 
+            characterData: true, 
+            childList: true,
+            subtree: true
+        });
+    }
+}
+
+// 랜덤 카드 뽑기 함수
+function drawRandomCards(count) {
+    // 새로운 뽑기를 시작할 때 이전에 뽑은 카드 초기화
+    drawnCards = [];
+    
+    const selectedCards = [];
+    const availableCards = [...tarotCards]; // 원본 배열을 복사
+    
+    for (let i = 0; i < count; i++) {
+        if (availableCards.length === 0) break;
+        
+        const randomIndex = Math.floor(Math.random() * availableCards.length);
+        const selectedCard = availableCards.splice(randomIndex, 1)[0];
+        
+        selectedCards.push(selectedCard);
+        drawnCards.push(selectedCard);
+    }
+    
+    return selectedCards;
+}
+
+// 뽑은 카드 표시 함수
+function displayDrawnCards(cards) {
+    const tarotResult = document.getElementById('tarotResult');
+    if (!tarotResult) return;
+    
+    if (Array.isArray(cards)) {
+        // 쉼표와 공백으로 구분하여 한 줄로 표시
+        tarotResult.textContent = cards.join(', ');
+    } else {
+        tarotResult.textContent = cards;
+    }
+    
+    updateCopyButtonState();
+}
+
+// 클립보드에 복사하는 함수
+function copyToClipboard() {
+    const tarotResult = document.getElementById('tarotResult');
+    if (!tarotResult || !tarotResult.textContent.trim()) return;
+    
+    navigator.clipboard.writeText(tarotResult.textContent)
+        .then(() => {
+            // 토스트 메시지 표시
+            showToast();
+            
+            // 복사 성공 시 일시적으로 버튼 스타일 변경
+            const copyBtn = document.getElementById('copyResultBtn');
+            if (copyBtn) {
+                copyBtn.style.backgroundColor = '#90EE90';
+                setTimeout(() => {
+                    copyBtn.style.backgroundColor = '';
+                }, 1000);
+            }
+        })
+        .catch(err => {
+            console.error('클립보드 복사 실패:', err);
+        });
+}
+
+function showToast() {
+    const toast = document.getElementById('toastMessage');
+    if (!toast) return;
+    
+    // 토스트 메시지 표시
+    toast.classList.add('show');
+    
+    // 2초 후 토스트 메시지 숨기기
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2000);
+}
+
+// 복사 버튼 상태 업데이트
+function updateCopyButtonState() {
+    const tarotResult = document.getElementById('tarotResult');
+    const copyResultBtn = document.getElementById('copyResultBtn');
+    
+    if (tarotResult && copyResultBtn) {
+        if (tarotResult.textContent.trim() === '') {
+            copyResultBtn.disabled = true;
+        } else {
+            copyResultBtn.disabled = false;
+        }
+    }
+}
+
+// Bottom sheet 열기
+function openTarotBottomSheet() {
+    const tarotBottomSheet = document.getElementById('tarotBottomSheet');
+    const chatBox = document.getElementById('chatBox');
+    
+    if (tarotBottomSheet) {
+        tarotBottomSheet.classList.add('open');
+        if (chatBox) {
+            chatBox.classList.add('with-bottom-sheet');
+        }
+    }
+}
+
+// Bottom sheet 닫기
+function closeTarotBottomSheet() {
+    const tarotBottomSheet = document.getElementById('tarotBottomSheet');
+    const chatBox = document.getElementById('chatBox');
+    
+    if (tarotBottomSheet) {
+        tarotBottomSheet.classList.remove('open');
+        if (chatBox) {
+            chatBox.classList.remove('with-bottom-sheet');
+        }
+    }
+}
+
 function handleIncomingMessage(data) {
     if (data.type === 'stream') {
         const content = extractContent(data.content);
@@ -848,6 +1167,14 @@ function appendMessage(sender, message) {
     messageElement.appendChild(contentElement);
     
     chatBox.insertBefore(messageElement, chatBox.firstChild);
+    
+    // AI 메시지인 경우 인디케이터 추가 (별도 요소로)
+    if (sender === 'ai') {
+        const indicatorElement = document.createElement('div');
+        indicatorElement.className = 'ai-indicator';
+        chatBox.insertBefore(indicatorElement, messageElement.nextSibling);
+    }
+    
     scrollToBottom();
 }
 
@@ -983,6 +1310,25 @@ function hideSessionLoadingIndicator() {
     // 세션 리스트 다시 표시
     const sessionList = document.getElementById('sessionList');
     sessionList.style.opacity = '1';
+}
+
+function initializeSessionCheck() {
+    let lastActivity = Date.now();
+    
+    // 사용자 활동 감지
+    ['click', 'keypress', 'scroll', 'mousemove'].forEach(event => {
+        document.addEventListener(event, () => {
+            lastActivity = Date.now();
+        });
+    });
+
+    // 주기적으로 세션 상태 체크
+    setInterval(async () => {
+        const inactiveTime = (Date.now() - lastActivity) / 1000;
+        if (inactiveTime >= config.sessionDuration) {
+            await handleLogout();
+        }
+    }, 60000); // 1분마다 체크
 }
 
 function initializeSidebarControls() {
@@ -1140,42 +1486,76 @@ function initializeEventListeners() {
 
     // Initialize sidebar controls
     initializeSidebarControls();
+
+    // Initialize tarot drawing 
+    initializeTarotDrawing();
 }
 
 async function initializePage() {
-    initializeEventListeners();
-    await handleAuthenticationFlow();
     try {
-        // localStorage에서 userId 확인
-        userId = localStorage.getItem('userId');
-        
-        // userId가 없다면 토큰에서 추출 시도
-        if (!userId) {
-            const idToken = localStorage.getItem('auth_token');
-            if (idToken) {
-                const tokenPayload = parseJwt(idToken);
-                if (tokenPayload && tokenPayload.sub) {
-                    userId = tokenPayload.sub;
-                    localStorage.setItem('userId', userId);
+        // 1. 기본 이벤트 리스너 초기화를 먼저 수행
+        initializeEventListeners();
+
+        // 2. URL 파라미터 체크
+        const urlParams = new URLSearchParams(window.location.search);
+        const authCode = urlParams.get('code');
+
+        if (authCode) {
+            await handleAuthenticationFlow();
+            return;
+        }
+
+        // 3. 인증 코드가 없는 경우 토큰 유효성 검증
+        const isValid = await TokenManager.validateTokenSet();
+        if (!isValid) {
+            const beforelogin = document.getElementById('beforelogin');
+            if (beforelogin) {
+                beforelogin.style.display = "block";
+            }
+            return;
+        }
+
+        // 4. 유효한 토큰이 있는 경우의 초기화
+        const idToken = localStorage.getItem('auth_token');
+        if (idToken) {
+            const tokenPayload = parseJwt(idToken);
+            if (tokenPayload?.sub) {
+                userId = tokenPayload.sub;
+                localStorage.setItem('userId', userId);
+                
+                try {
+                    const userInfo = await getUserInfo(idToken);
+                    document.getElementById('userinfo1').innerText = userInfo.email;
+                    document.getElementById('userinfo2').innerText = userInfo.email;
+                    updateProfileButton(userInfo);
+                    
+                    const beforelogin = document.getElementById('beforelogin');
+                    if (beforelogin) {
+                        beforelogin.style.display = "none";
+                    }
+
+                    // 5. 세션 관련 초기화
+                    if (userId) {
+                        await fetchSessions(userId);
+                    }
+                    
+                    initializeSessionCheck();
+                } catch (error) {
+                    console.error('User info validation failed:', error);
+                    const loginButton = document.getElementById('LoginBtn');
+                    if (loginButton) {
+                        loginButton.style.display = "block";
+                    }
                 }
             }
         }
-        
-        // userId가 있으면 세션 목록 가져오기
-        if (userId) {
-            await fetchSessions(userId);
-        }
-        console.log('userid:', userId)
     } catch (error) {
-        console.error('Error initializing page:', error);
-        hideSessionLoadingIndicator();
+        console.error('Initialization failed:', error);
+        const loginButton = document.getElementById('LoginBtn');
+        if (loginButton) {
+            loginButton.style.display = "block";
+        }
     }
-    
-    // URL에서 인증 코드 제거
-    window.history.replaceState({}, document.title, window.location.pathname);
-
-    // fake welcome message 표시
-    displayWelcomeMessage();
 }
 
 document.addEventListener('DOMContentLoaded', initializePage);
