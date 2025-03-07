@@ -361,6 +361,8 @@ function handleLogout() {
 function initializeProfileModal() {
     const profileModal = document.getElementById("profileModal");
     const profileBtn = document.getElementById("ProfileBtn");
+    const settingbtnB = document.getElementById("settingbtnB");
+    const settingsModal = document.getElementById("settings");
     
     if (profileModal && profileBtn) {
         profileBtn.onclick = function() {
@@ -371,7 +373,14 @@ function initializeProfileModal() {
         }
     }
 
-    // 기존의 window onclick 핸들러 수정
+    // 프로필 모달 내 설정 버튼 클릭 시 설정 모달로 전환
+    if (settingbtnB && settingsModal) {
+        settingbtnB.onclick = function() {
+            profileModal.style.display = "none"; // 프로필 모달 닫기
+            settingsModal.style.display = "block"; // 설정 모달 열기
+        }
+    }
+
     window.onclick = function(event) {
         const settingsModal = document.getElementById("settingsModal");
         const profileModal = document.getElementById("profileModal");
@@ -1820,6 +1829,7 @@ async function initializePage() {
                 userId = tokenPayload.sub;
                 localStorage.setItem('userId', userId);
                 
+                // UI 업데이mo
                 try {
                     const userInfo = await getUserInfo(idToken);
                     document.getElementById('userinfo1').innerText = userInfo.email;
