@@ -927,14 +927,18 @@ function initializeTarotDrawing() {
     const copyResultBtn = document.getElementById('copyResultBtn');
     const chatBox = document.getElementById('chatBox');
     
-    // 뽑기 버튼 클릭 시 bottom sheet 열기
+    // 뽑기 버튼 클릭 시 bottom sheet 토글
     if (drawTarotBtn) {
         drawTarotBtn.addEventListener('click', () => {
-            openTarotBottomSheet();
+            if (tarotBottomSheet.classList.contains('open')) {
+                closeTarotBottomSheet();
+            } else {
+                openTarotBottomSheet();
+            }
         });
     }
-    
-    // 외부 클릭 시 bottom sheet 닫기 (HTML 구조에 맞게 수정)
+        
+    // 외부 클릭 시 bottom sheet 닫기
     document.addEventListener('click', (event) => {
         if (tarotBottomSheet && tarotBottomSheet.classList.contains('open')) {
             const bottomSheetContent = tarotBottomSheet.querySelector('.bottom-sheet-content');
