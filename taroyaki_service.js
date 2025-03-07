@@ -26,6 +26,9 @@ let sessionToDelete = null;
 let currentSessionId = null;
 let socket = null;
 let sessionLoadingAnimation = null;
+let isAutocompleteVisible = false;
+let selectedCardIndex = -1;
+let filteredCards = [];
 
 // 타로 카드 목록 정의
 const tarotCards = [
@@ -1094,6 +1097,293 @@ function closeTarotBottomSheet() {
     }
 }
 
+// 자동완성 모달 초기화
+function initializeCardAutocomplete() {
+    const messageInput = document.getElementById('messageInput');
+    const autocompleteModal = document.getElementById('tarotCardAutocomplete');
+    const suggestionList = document.getElementById('cardSuggestionList');
+    
+    if (!messageInput || !autocompleteModal || !suggestionList) return;
+    
+    // 입력 이벤트 리스너
+    messageInput.addEventListener('input', function(e) {
+        handleInputChange(e);
+    });
+    
+    // 키 다운 이벤트 리스너
+    messageInput.addEventListener('keydown', function(e) {
+        handleKeyDown(e);
+    });
+    
+    // 클릭 이벤트 리스너
+    suggestionList.addEventListener('click', function(e) {
+        const item = e.target.closest('li');
+        if (item) {
+            const cardName = item.getAttribute('data-card');
+            insertCardName(cardName);
+        }
+    });
+    
+    // 외부 클릭 시 자동완성 닫기
+    document.addEventListener('click', function(e) {
+        if (!autocompleteModal.contains(e.target) && e.target !== messageInput) {
+            hideAutocomplete();
+        }
+    });
+}
+
+// 입력 변경 핸들러
+function handleInputChange(e) {
+    const input = e.target;
+    const cursorPosition = input.selectionStart;
+    const text = input.value;
+    
+    // 커서 위치 이전의 텍스트에서 마지막 '/' 위치 찾기
+    const lastSlashIndex = text.substring(0, cursorPosition).lastIndexOf('/');
+    
+    // '/'가 있는 경우 자동완성 표시 (스페이스가 있어도 계속 표시)
+    if (lastSlashIndex !== -1) {
+        const searchTerm = text.substring(lastSlashIndex + 1, cursorPosition).toLowerCase();
+        showAutocomplete(searchTerm);
+    } else {
+        hideAutocomplete();
+    }
+}
+
+// 키 입력 핸들러
+function handleKeyDown(e) {
+    if (!isAutocompleteVisible) return;
+    
+    switch (e.key) {
+        case 'ArrowDown':
+            e.preventDefault();
+            selectNextCard();
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            selectPreviousCard();
+            break;
+        case 'Enter':
+            if (isAutocompleteVisible && selectedCardIndex >= 0 && selectedCardIndex < filteredCards.length) {
+                e.preventDefault();
+                insertCardName(filteredCards[selectedCardIndex]);
+                return;
+            }
+            break;
+        case 'Escape':
+            e.preventDefault();
+            hideAutocomplete();
+            break;
+    }
+}
+
+// 자동완성 표시
+function showAutocomplete(searchTerm) {
+    const autocompleteModal = document.getElementById('tarotCardAutocomplete');
+    const suggestionList = document.getElementById('cardSuggestionList');
+    
+    if (!autocompleteModal || !suggestionList) return;
+    
+    // 검색어가 있으면 필터링, 없으면 전체 목록
+    if (searchTerm) {
+        // 검색어에 공백이 있는 경우 각 단어를 개별적으로 처리
+        const searchTerms = searchTerm.trim().split(/\s+/).filter(term => term.length > 0);
+        
+        if (searchTerms.length > 0) {
+            filteredCards = tarotCards.filter(card => {
+                const lowerCard = card.toLowerCase();
+                // 모든 검색어가 카드 이름에 포함되어야 함
+                return searchTerms.every(term => lowerCard.includes(term));
+            });
+        } else {
+            filteredCards = [...tarotCards];
+        }
+    } else {
+        filteredCards = [...tarotCards];
+    }
+    
+    // 필터링된 카드가 없으면 자동완성 숨김
+    if (filteredCards.length === 0) {
+        hideAutocomplete();
+        return;
+    }
+    
+    // 목록 렌더링
+    renderCardSuggestions(suggestionList, filteredCards, searchTerm);
+    
+    // 모달 표시
+    autocompleteModal.style.display = 'block';
+    isAutocompleteVisible = true;
+    
+    // 첫 번째 항목 선택
+    selectedCardIndex = 0;
+    updateSelectedCard();
+}
+
+// 카드 제안 렌더링
+function renderCardSuggestions(container, cards, searchTerm) {
+    container.innerHTML = '';
+    
+    cards.forEach((card, index) => {
+        const li = document.createElement('li');
+        li.setAttribute('data-card', card);
+        li.setAttribute('data-index', index);
+        
+        if (searchTerm && searchTerm.trim()) {
+            // 공백으로 검색어 분리
+            const searchTerms = searchTerm.toLowerCase().trim().split(/\s+/).filter(term => term.length > 0);
+            
+            if (searchTerms.length > 0) {
+                // 메인 텍스트 내용을 먼저 비움
+                li.textContent = '';
+                
+                const lowerCard = card.toLowerCase();
+                const matches = [];
+                
+                // 모든 검색어 매치 찾기
+                searchTerms.forEach(term => {
+                    if (term.length === 0) return;
+                    
+                    const regex = new RegExp(term, 'gi');
+                    let match;
+                    while ((match = regex.exec(card)) !== null) {
+                        matches.push({
+                            start: match.index,
+                            end: match.index + match[0].length,
+                            text: match[0]
+                        });
+                    }
+                });
+                
+                // 매치 없는 경우
+                if (matches.length === 0) {
+                    li.textContent = card;
+                    container.appendChild(li);
+                    return;
+                }
+                
+                // 겹치는 매치 처리 및 정렬
+                matches.sort((a, b) => a.start - b.start);
+                const mergedMatches = [];
+                let current = matches[0];
+                
+                for (let i = 1; i < matches.length; i++) {
+                    if (matches[i].start <= current.end) {
+                        // 겹치는 매치 합치기
+                        current.end = Math.max(current.end, matches[i].end);
+                    } else {
+                        // 다음 매치와 겹치지 않음
+                        mergedMatches.push(current);
+                        current = matches[i];
+                    }
+                }
+                mergedMatches.push(current);
+                
+                // 카드 이름을 하이라이트된 부분과 일반 부분으로 나누어 추가
+                let lastEnd = 0;
+                
+                mergedMatches.forEach(match => {
+                    // 하이라이트 전 텍스트 추가
+                    if (match.start > lastEnd) {
+                        const textBefore = document.createTextNode(card.substring(lastEnd, match.start));
+                        li.appendChild(textBefore);
+                    }
+                    
+                    // 하이라이트된 텍스트 추가
+                    const highlightSpan = document.createElement('span');
+                    highlightSpan.className = 'highlighted';
+                    highlightSpan.textContent = card.substring(match.start, match.end);
+                    li.appendChild(highlightSpan);
+                    
+                    lastEnd = match.end;
+                });
+                
+                // 마지막 하이라이트 이후 텍스트 추가
+                if (lastEnd < card.length) {
+                    const textAfter = document.createTextNode(card.substring(lastEnd));
+                    li.appendChild(textAfter);
+                }
+            } else {
+                li.textContent = card;
+            }
+        } else {
+            li.textContent = card;
+        }
+        
+        container.appendChild(li);
+    });
+}
+
+// 자동완성 숨김
+function hideAutocomplete() {
+    const autocompleteModal = document.getElementById('tarotCardAutocomplete');
+    if (autocompleteModal) {
+        autocompleteModal.style.display = 'none';
+    }
+    isAutocompleteVisible = false;
+    selectedCardIndex = -1;
+    filteredCards = [];
+}
+
+// 다음 카드 선택
+function selectNextCard() {
+    if (filteredCards.length === 0) return;
+    
+    selectedCardIndex = (selectedCardIndex + 1) % filteredCards.length;
+    updateSelectedCard();
+}
+
+// 이전 카드 선택
+function selectPreviousCard() {
+    if (filteredCards.length === 0) return;
+    
+    selectedCardIndex = (selectedCardIndex - 1 + filteredCards.length) % filteredCards.length;
+    updateSelectedCard();
+}
+
+// 선택된 카드 업데이트
+function updateSelectedCard() {
+    const items = document.querySelectorAll('#cardSuggestionList li');
+    
+    items.forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    if (selectedCardIndex >= 0 && selectedCardIndex < items.length) {
+        items[selectedCardIndex].classList.add('selected');
+        // 선택된 항목이 보이도록 스크롤
+        items[selectedCardIndex].scrollIntoView({ block: 'nearest' });
+    }
+}
+
+// 카드 이름 삽입
+function insertCardName(cardName) {
+    const messageInput = document.getElementById('messageInput');
+    if (!messageInput) return;
+    
+    const cursorPosition = messageInput.selectionStart;
+    const text = messageInput.value;
+    
+    // 마지막 '/' 위치 찾기
+    const lastSlashIndex = text.substring(0, cursorPosition).lastIndexOf('/');
+    
+    if (lastSlashIndex !== -1) {
+        // 슬래시를 포함한 검색어를 카드 이름으로 교체
+        const newText = text.substring(0, lastSlashIndex) + cardName + ' ' + text.substring(cursorPosition);
+        messageInput.value = newText;
+        
+        // 커서 위치 업데이트 (카드 이름 뒤로)
+        const newCursorPosition = lastSlashIndex + cardName.length + 1;
+        messageInput.setSelectionRange(newCursorPosition, newCursorPosition);
+    }
+    
+    hideAutocomplete();
+    messageInput.focus();
+    
+    // 입력 영역 스타일 업데이트
+    updateInputAreaStyle();
+}
+
 function handleIncomingMessage(data) {
     if (data.type === 'stream') {
         const content = extractContent(data.content);
@@ -1489,6 +1779,9 @@ function initializeEventListeners() {
 
     // Initialize tarot drawing 
     initializeTarotDrawing();
+
+    initializeCardAutocomplete();
+
 }
 
 async function initializePage() {

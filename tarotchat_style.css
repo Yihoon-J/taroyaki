@@ -1315,3 +1315,75 @@ background-color: #E2DBCC;
   float: right;
   cursor: pointer;
 }
+
+/* 카드 자동완성 모달 */
+.autocomplete-modal {
+  display: none;
+  position: absolute;
+  bottom: 140px; /* inputArea 위에 위치하도록 조정 */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 400px;
+  max-height: 300px;
+  background-color: #F9F5ED;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.autocomplete-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #E2DBCC;
+  background-color: #EBE4D4;
+}
+
+.autocomplete-header span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #242529;
+}
+
+.autocomplete-hint {
+  color: #7D7D7D !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+.autocomplete-content {
+  overflow-y: auto;
+  max-height: 250px;
+}
+
+#cardSuggestionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#cardSuggestionList li {
+  padding: 10px 15px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+  color: #6A6456;
+}
+
+#cardSuggestionList li:hover {
+  background-color: #E2DBCC;
+}
+
+#cardSuggestionList li.selected {
+  background-color: #E2DBCC;
+  color: #242529;
+  font-weight: 500;
+}
+
+.highlighted {
+  font-weight: 600;
+  color: #242529;
+}
