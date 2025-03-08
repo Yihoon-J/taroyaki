@@ -739,8 +739,8 @@ background-color: #E2DBCC;
 .typing-indicator {
   width: 120px;
   height: 60px;
-  background-color: #eeeeee !important; /* ai-message의 배경색과 동일하게 */
-  padding: 10px !important;
+  background-color: #E8E5DD !important; /* ai-message의 배경색과 동일하게 */
+  padding: 3px 10px;
 }
 
 .typing-indicator.visible {
@@ -970,7 +970,7 @@ background-color: #E2DBCC;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  z-index: 10;
+  z-index: 12;
   opacity: 0;
   transition: transform 0.3s ease, opacity 0.3s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -1204,11 +1204,11 @@ background-color: #E2DBCC;
   height: 60px;
 }
 /* 프로필 모달 전체 */
-/* momdalB 배경 투명하게 표시되는 이슈 있음 */
 .modalB {
   display: none;
   position: fixed;
   text-align: center;
+  background-color: #F9F5ED;
   z-index: 20;
   right: 20px;
   top: 64px;        /* ProfileBtn(36px) + 8px 여백 */

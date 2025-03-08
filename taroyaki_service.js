@@ -161,8 +161,9 @@ async function handleAuthenticationFlow() {
 
         const beforelogin = document.getElementById('beforelogin');
         if (beforelogin) beforelogin.style.display = "none";
-        
+        enablePostLoginFeatures();
         showSessionLoadingIndicator();
+        displayWelcomeMessage();
 
         // userId 설정
         const tokenPayload = parseJwt(tokenData.id_token);
@@ -356,6 +357,52 @@ function handleLogout() {
     
     const logoutUrl = `${config.domain}/logout?client_id=${config.clientId}&logout_uri=${encodeURIComponent(config.logoutRedirectUri)}`;
     window.location.href = logoutUrl;
+}
+
+function disablePreLoginFeatures() {
+    // 새 대화 버튼 비활성화
+    const newChatButton = document.getElementById('newChatButton');
+    const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
+    
+    if (newChatButton) {
+        newChatButton.disabled = true;
+        newChatButton.style.cursor = 'not-allowed';
+    }
+    
+    if (collapsedNewChatBtn) {
+        collapsedNewChatBtn.disabled = true;
+        collapsedNewChatBtn.style.cursor = 'not-allowed';
+    }
+    
+    // 메시지 입력 필드 비활성화
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.disabled = true;
+        messageInput.style.cursor = 'not-allowed';
+    }
+}
+
+function enablePostLoginFeatures() {
+    // 새 대화 버튼 활성화
+    const newChatButton = document.getElementById('newChatButton');
+    const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
+    
+    if (newChatButton) {
+        newChatButton.disabled = false;
+        newChatButton.style.cursor = 'pointer';
+    }
+    
+    if (collapsedNewChatBtn) {
+        collapsedNewChatBtn.disabled = false;
+        collapsedNewChatBtn.style.cursor = 'pointer';
+    }
+    
+    // 메시지 입력 필드 활성화
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.disabled = false;
+        messageInput.style.cursor = 'text';
+    }
 }
 
 function initializeProfileModal() {
@@ -1801,6 +1848,7 @@ async function initializePage() {
     try {
         // 1. 기본 이벤트 리스너 초기화를 먼저 수행
         initializeEventListeners();
+        disablePreLoginFeatures();
 
         // 2. URL 파라미터 체크
         const urlParams = new URLSearchParams(window.location.search);
@@ -1815,12 +1863,15 @@ async function initializePage() {
         const isValid = await TokenManager.validateTokenSet();
         if (!isValid) {
             const beforelogin = document.getElementById('beforelogin');
+            
             if (beforelogin) {
                 beforelogin.style.display = "block";
             }
             return;
         }
 
+        enablePostLoginFeatures();
+        
         // 4. 유효한 토큰이 있는 경우의 초기화
         const idToken = localStorage.getItem('auth_token');
         if (idToken) {
