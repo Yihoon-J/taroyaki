@@ -808,7 +808,7 @@ background-color: #E2DBCC;
   bottom: -300px; /* 초기에는 화면 밖에 위치 */
   left: 0;
   width: 100%;
-  z-index: 11;
+  z-index: 30;
   transition: bottom 0.3s ease-in-out;
   max-height: 300px;
 }

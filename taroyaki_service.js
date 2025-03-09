@@ -162,8 +162,9 @@ async function handleAuthenticationFlow() {
         const beforelogin = document.getElementById('beforelogin');
         if (beforelogin) beforelogin.style.display = "none";
         enablePostLoginFeatures();
+        initializeTarotDrawing();
         showSessionLoadingIndicator();
-        displayWelcomeMessage();
+        
 
         // userId 설정
         const tokenPayload = parseJwt(tokenData.id_token);
@@ -664,6 +665,7 @@ async function fetchSessions(userId) {
         const sessions = await response.json();
         hideSessionLoadingIndicator();
         displaySessions(sessions);
+        displayWelcomeMessage();
         return sessions;
     } catch (error) {
         console.error('Error fetching sessions:', error);

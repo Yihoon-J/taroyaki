@@ -15,7 +15,7 @@ def lambda_handler(event, context):
                 'body': json.dumps({'error': 'Both sessionId and userId are required'}),
                 'headers': {
                     'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': 'http://localhost:3001',
+                    'Access-Control-Allow-Origin': 'https://dje3vsz99xjr1.cloudfront.net',
                     'Access-Control-Allow-Credentials': 'true'
                 }
             }
@@ -32,7 +32,7 @@ def lambda_handler(event, context):
             'body': json.dumps('Session deleted successfully'),
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': 'http://localhost:3001',
+                'Access-Control-Allow-Origin': 'https://dje3vsz99xjr1.cloudfront.net',
                 'Access-Control-Allow-Credentials': 'true'
             }
         }
@@ -42,7 +42,7 @@ def lambda_handler(event, context):
             'body': json.dumps({'error': str(e)}),
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': 'http://localhost:3001',
+                'Access-Control-Allow-Origin': 'https://dje3vsz99xjr1.cloudfront.net',
                 'Access-Control-Allow-Credentials': 'true'
             }
         }

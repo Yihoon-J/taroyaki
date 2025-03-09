@@ -15,7 +15,7 @@ def lambda_handler(event, context):
                 'body': json.dumps({'error': 'Both userId and sessionId are required'}),
                 'headers': {
                     'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': 'http://localhost:3001',
+                    'Access-Control-Allow-Origin': 'https://dje3vsz99xjr1.cloudfront.net',
                     'Access-Control-Allow-Credentials': 'true'
                 }
             }
@@ -33,7 +33,7 @@ def lambda_handler(event, context):
                 'body': json.dumps({'error': 'Session not found'}),
                 'headers': {
                     'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': 'http://localhost:3001',
+                    'Access-Control-Allow-Origin': 'https://dje3vsz99xjr1.cloudfront.net',
                     'Access-Control-Allow-Credentials': 'true'
                 }
             }
@@ -45,7 +45,7 @@ def lambda_handler(event, context):
             'body': json.dumps(history),
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': 'http://localhost:3001',
+                'Access-Control-Allow-Origin': 'https://dje3vsz99xjr1.cloudfront.net',
                 'Access-Control-Allow-Credentials': 'true'
             }
         }
@@ -55,7 +55,7 @@ def lambda_handler(event, context):
             'body': json.dumps({'error': str(e)}),
             'headers': {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': 'http://localhost:3001',
+                'Access-Control-Allow-Origin': 'https://dje3vsz99xjr1.cloudfront.net',
                 'Access-Control-Allow-Credentials': 'true'
             }
         }
