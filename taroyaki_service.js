@@ -7,8 +7,8 @@ const config = {
     restEndpoint: "https://blgg29wto5.execute-api.us-east-1.amazonaws.com/product",
     wsEndpoint: "wss://tt0ikgb3sd.execute-api.us-east-1.amazonaws.com/production/",
     logoutRedirectUri: "https://dje3vsz99xjr1.cloudfront.net/index.html",
-    tokenRefreshThreshold: 5 * 60,
-    sessionDuration: 3 * 60, // 3분
+    tokenRefreshThreshold: 5 * 60, // 5분
+    sessionDuration: 60 * 60, // 1시간
     tokenExpirations: {
         id: 60 * 60,     // 60분
         access: 60 * 60,  // 60분
@@ -63,8 +63,39 @@ const tarotCards = [
 // 타로 카드 뽑기 관련 변수와 함수
 let drawnCards = [];
 
+// 토큰 상태 모니터링 함수
+function logTokenStatus() {
+    const idToken = localStorage.getItem('auth_token');
+    const accessToken = localStorage.getItem('access_token');
+    const refreshToken = localStorage.getItem('refresh_token');
+    
+    if (!idToken || !accessToken || !refreshToken) {
+      console.warn('토큰 누락: ', {
+        idToken: !!idToken,
+        accessToken: !!accessToken,
+        refreshToken: !!refreshToken
+      });
+      return;
+    }
+    
+    const now = Math.floor(Date.now() / 1000);
+    const idExp = parseJwt(idToken)?.exp || 0;
+    const accessExp = parseJwt(accessToken)?.exp || 0;
+    const refreshExp = parseJwt(refreshToken)?.exp || 0;
+    
+    console.log('토큰 상태: ', {
+      현재시간: new Date(now * 1000).toLocaleString(),
+      ID토큰만료: new Date(idExp * 1000).toLocaleString(),
+      ID토큰남은시간: (idExp - now) + '초',
+      액세스토큰만료: new Date(accessExp * 1000).toLocaleString(),
+      액세스토큰남은시간: (accessExp - now) + '초',
+      리프레시토큰만료: new Date(refreshExp * 1000).toLocaleString(),
+      리프레시토큰남은시간: (refreshExp - now) + '초'
+    });
+  }
+  
 function handleLogin() {
-    const loginUrl = `${config.domain}/login?response_type=code&client_id=${config.clientId}&redirect_uri=${config.redirectUri}`;
+    const loginUrl = `${config.domain}/login?lang=ko&response_type=code&client_id=${config.clientId}&redirect_uri=${config.redirectUri}`;
     window.location.href = loginUrl;
 }
 
@@ -198,20 +229,45 @@ async function handleAuthenticationFlow() {
 
 function parseJwt(token) {
     try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        return JSON.parse(jsonPayload);
+        // 토큰이 유효한지 기본 검사
+        if (!token || typeof token !== 'string' || !token.includes('.')) {
+            console.warn('유효하지 않은 토큰 형식:', token ? '토큰 길이=' + token.length : '토큰 없음');
+            return null;
+        }
+
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+            console.warn('JWT 토큰 형식 오류: 3개 부분이 아님');
+            return null;
+        }
+
+        const base64Url = parts[1]; // 페이로드 부분만 가져오기
+        
+        // Base64 URL 디코딩 시도
+        try {
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const rawPayload = atob(base64);
+            
+            // JSON 파싱 전에 유효한 UTF-8 문자열인지 확인
+            const decodedPayload = decodeURIComponent(
+                Array.from(rawPayload).map(c => {
+                    const hex = c.charCodeAt(0).toString(16);
+                    return '%' + ('00' + hex).slice(-2);
+                }).join('')
+            );
+            
+            return JSON.parse(decodedPayload);
+        } catch (decodeError) {
+            console.error('토큰 디코딩 실패:', decodeError, '토큰 값(일부):', base64Url.substring(0, 10) + '...');
+            return null;
+        }
     } catch (e) {
-        console.error('Token parsing failed:', e);
+        console.error('토큰 파싱 전체 실패:', e);
         return null;
     }
 }
 
 class TokenManager {
-    static REFRESH_THRESHOLD = 10 * 60; // 10분으로 증가
 
     static getTokenExpiration(token) {
         const decoded = parseJwt(token);
@@ -219,11 +275,27 @@ class TokenManager {
     }
 
     static async validateTokenSet() {
+        logTokenStatus(); // 토큰 상태 로깅
+
         const idToken = localStorage.getItem('auth_token');
         const accessToken = localStorage.getItem('access_token');
         const refreshToken = localStorage.getItem('refresh_token');
 
+        // 토큰이 없는 경우 즉시 반환
         if (!idToken || !accessToken || !refreshToken) {
+            console.warn('토큰 세트 누락 - 로그인 필요');
+            return false;
+        }
+
+        // 토큰 만료 시간 확인 전에 형식 유효성 검사
+        const idDecoded = parseJwt(idToken);
+        const accessDecoded = parseJwt(accessToken);
+        const refreshDecoded = parseJwt(refreshToken);
+
+        if (!idDecoded || !accessDecoded || !refreshDecoded) {
+            console.error('하나 이상의 토큰이 유효하지 않은 형식임 - 다시 로그인 필요');
+            // 토큰 자체가 파싱되지 않으면 즉시 로그아웃
+            await handleLogout();
             return false;
         }
 
@@ -239,8 +311,8 @@ class TokenManager {
         }
 
         // ID 또는 Access 토큰이 만료 임박한 경우
-        if (now >= idExpiration - this.REFRESH_THRESHOLD * 1000 ||
-            now >= accessExpiration - this.REFRESH_THRESHOLD * 1000) {
+        if (now >= idExpiration - config.tokenRefreshThreshold * 1000 ||
+            now >= accessExpiration - config.tokenRefreshThreshold * 1000) {
             try {
                 await refreshTokens(refreshToken);
                 return true;
@@ -363,18 +435,26 @@ function handleLogout() {
 function disablePreLoginFeatures() {
     // 새 대화 버튼 비활성화
     const newChatButton = document.getElementById('newChatButton');
-    const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
-    
     if (newChatButton) {
         newChatButton.disabled = true;
         newChatButton.style.cursor = 'not-allowed';
     }
-    
+    const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
     if (collapsedNewChatBtn) {
         collapsedNewChatBtn.disabled = true;
         collapsedNewChatBtn.style.cursor = 'not-allowed';
     }
-    
+    // 카드 뽑기 버튼 비활성화
+    const drawTarotBtn = document.getElementById('drawTarotBtn');
+    if (drawTarotBtn) {
+        drawTarotBtn.style.display = 'none';
+    }
+    // 프로필 모달 비활성화
+    const ProfileBtn = document.getElementById('ProfileBtn')
+    if(ProfileBtn) {
+        ProfileBtn.disabled = true;
+        ProfileBtn.style.cursor = 'not-allowed';
+    }
     // 메시지 입력 필드 비활성화
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
@@ -386,23 +466,39 @@ function disablePreLoginFeatures() {
 function enablePostLoginFeatures() {
     // 새 대화 버튼 활성화
     const newChatButton = document.getElementById('newChatButton');
-    const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
-    
     if (newChatButton) {
         newChatButton.disabled = false;
         newChatButton.style.cursor = 'pointer';
     }
-    
+
+    const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
     if (collapsedNewChatBtn) {
         collapsedNewChatBtn.disabled = false;
         collapsedNewChatBtn.style.cursor = 'pointer';
     }
     
+    // 카드 뽑기 버튼 활성화
+    const drawTarotBtn = document.getElementById('drawTarotBtn');
+    if (drawTarotBtn) {
+        drawTarotBtn.style.display = 'block';
+    }
+
+    const ProfileBtn = document.getElementById('ProfileBtn')
+    if(ProfileBtn) {
+        ProfileBtn.disabled = false;
+        ProfileBtn.style.cursor = 'pointer';
+    }
+
     // 메시지 입력 필드 활성화
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
         messageInput.disabled = false;
         messageInput.style.cursor = 'text';
+    }
+
+    const beforelogin = document.getElementById('beforelogin');
+    if (beforelogin) {
+        beforelogin.style.display = "none";
     }
 }
 
@@ -516,7 +612,7 @@ async function startNewChat() {
     }
 
     currentSessionId = null;
-    
+    document.getElementById('chatBox').innerHTML = '';
     document.getElementById('chatBox').innerHTML = 
         '<div class="message ai-message temporary-welcome"><div class="message-content">어떤 이야기를 하고 싶나요?</div></div>';
     
@@ -1674,13 +1770,25 @@ function initializeSessionCheck() {
         });
     });
 
-    // 주기적으로 세션 상태 체크
-    setInterval(async () => {
-        const inactiveTime = (Date.now() - lastActivity) / 1000;
-        if (inactiveTime >= config.sessionDuration) {
+    // 주기적으로 토큰 유효성 확인 및 갱신
+    const tokenCheckInterval = setInterval(async () => {
+        try {
+            // 토큰 확인 및 필요시 갱신
+            await TokenManager.validateTokenSet();
+            
+            // 비활성 시간 확인 (여전히 세션 만료는 유지)
+            const inactiveTime = (Date.now() - lastActivity) / 1000;
+            if (inactiveTime >= config.sessionDuration) {
+                console.log("User inactive for too long, logging out");
+                await handleLogout();
+                clearInterval(tokenCheckInterval);
+            }
+        } catch (error) {
+            console.error("Token validation failed:", error);
             await handleLogout();
+            clearInterval(tokenCheckInterval);
         }
-    }, 60000); // 1분마다 체크
+    }, config.tokenRefreshThreshold * 500); // 2.5분마다 확인
 }
 
 function initializeSidebarControls() {
@@ -1876,23 +1984,39 @@ async function initializePage() {
         
         // 4. 유효한 토큰이 있는 경우의 초기화
         const idToken = localStorage.getItem('auth_token');
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+            try {
+                await refreshTokens(refreshToken);
+            } catch (error) {
+                console.warn("Initial token refresh failed:", error);
+            }
+        }
+
+        // 주기적 토큰 갱신 설정 (30분마다)
+        setInterval(async () => {
+            const refreshToken = localStorage.getItem('refresh_token');
+            if (refreshToken) {
+                try {
+                    await refreshTokens(refreshToken);
+                    console.log("Token refreshed successfully");
+                } catch (error) {
+                    console.error("Periodic token refresh failed:", error);
+                }
+            }
+        }, 30 * 60 * 1000); // 30분마다
         if (idToken) {
             const tokenPayload = parseJwt(idToken);
             if (tokenPayload?.sub) {
                 userId = tokenPayload.sub;
                 localStorage.setItem('userId', userId);
                 
-                // UI 업데이mo
+                // UI 업데이트
                 try {
                     const userInfo = await getUserInfo(idToken);
                     document.getElementById('userinfo1').innerText = userInfo.email;
                     document.getElementById('userinfo2').innerText = userInfo.email;
                     updateProfileButton(userInfo);
-                    
-                    const beforelogin = document.getElementById('beforelogin');
-                    if (beforelogin) {
-                        beforelogin.style.display = "none";
-                    }
 
                     // 5. 세션 관련 초기화
                     if (userId) {

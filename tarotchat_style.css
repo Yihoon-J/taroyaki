@@ -5,6 +5,20 @@ button {
   cursor: pointer;
 }
 
+/* 이미지 프리로딩 */
+body::after {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  z-index: -1;
+  content: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/side-hov.png')
+           url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/new-hov.png')
+           url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/set-hov.png')
+           url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-hov.png')
+           url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-hov2.png');
+}
+
 #mainContent {
   display: flex; 
   flex: 1;
@@ -664,7 +678,7 @@ background-color: #E2DBCC;
   /* absolute 대신 다음과 같이 변경 */
   position: relative;
   height: calc(100vh - 125px); /* 100vh에서 입력창 높이(73px), 하단 여백(50px), 경고 메시지 높이(약 33px), 상단 여백(100px) 제외 */
-  padding: 70px 0 0px 0; /* 상단 여백, 하단에 입력창 + 경고메시지 공간 확보 */
+  padding: 70px 0 90px 0; /* 상단 여백, 하단에 입력창 + 경고메시지 공간 확보 */
   overflow-y: auto;
   box-sizing: border-box;
 }
@@ -970,7 +984,7 @@ background-color: #E2DBCC;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  z-index: 12;
+  z-index: 32;
   opacity: 0;
   transition: transform 0.3s ease, opacity 0.3s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
