@@ -610,13 +610,13 @@ background-color: #E2DBCC;
   box-sizing: border-box;
   position: absolute;
   bottom: 50px;
+  right: 20px;
   flex-direction: row;
-  left: 50%;
-  transform: translateX(-50%);
-  display:flex;
+  display: flex;
   align-items: center;
   height: 73px;
-  width: 90%;
+  width: calc(100% - 120px);
+  max-width: calc(100% - 120px);
   background: #F3EEE4;
   border: 1.3px solid #7d7d7d;
   border-radius: 36.5px;
@@ -626,13 +626,13 @@ background-color: #E2DBCC;
   box-sizing: border-box;
   position: absolute;
   bottom: 50px;
+  right: 20px;
   flex-direction: row;
-  left: 50%;
-  transform: translateX(-50%);
-  display:flex;
+  display: flex;
   align-items: center;
   height: 73px;
-  width: 90%;
+  width: calc(100% - 120px);
+  max-width: calc(100% - 120px);
   background: #F3EEE4;
   border: 1.3px solid #D5D1C8;
   border-radius: 36.5px;
@@ -784,17 +784,18 @@ background-color: #E2DBCC;
 /* 타로 카드 뽑기 버튼 */
 #drawTarotBtn {
   position: absolute;
-  bottom: 140px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 50px;
+  left: 20px;
   display: flex;
   align-items: center;
-  height: 40px;
-  padding: 0 16px;
-  background-color: #38383A;
-  color: #EBE4D4;
+  justify-content: center;
+  height: 73px;
+  width: 73px;
+  padding: 0;
+  background-color: #EBE4D4;
+  color: #38383A;
   border: none;
-  border-radius: 20px;
+  border-radius: 36.5px; /* 원형 버튼 */
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -803,17 +804,21 @@ background-color: #E2DBCC;
 }
 
 #drawTarotBtn:hover {
-  background-color: #242529;
+  background-color: #E2DBCC;
 }
 
 #drawTarotBtnIcon {
-  width: 20px;
-  height: 20px;
-  margin-right: 8px;
+  width: 30px;
+  height: 30px;
+  margin-right: 0;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/taroyaki-icon.png');
+}
+
+#drawTarotBtnText {
+  display: none;
 }
 
 /* Bottom Sheet */

@@ -183,9 +183,6 @@ async function handleAuthenticationFlow() {
         if (userId) {
             await fetchSessions(userId);
         }
-
-        // 세션 체크 초기화
-        initializeSessionCheck();
         
         return true;
 
@@ -375,7 +372,8 @@ function disablePreLoginFeatures() {
     // 카드 뽑기 버튼 비활성화
     const drawTarotBtn = document.getElementById('drawTarotBtn');
     if (drawTarotBtn) {
-        drawTarotBtn.style.display = 'none';
+        drawTarotBtn.disabled = true;
+        drawTarotBtn.style.cursor = 'not-allowed';
     }
     // 프로필 모달 비활성화
     const ProfileBtn = document.getElementById('ProfileBtn')
@@ -408,7 +406,8 @@ function enablePostLoginFeatures() {
     // 카드 뽑기 버튼 활성화
     const drawTarotBtn = document.getElementById('drawTarotBtn');
     if (drawTarotBtn) {
-        drawTarotBtn.style.display = 'block';
+        drawTarotBtn.disabled = false;
+        drawTarotBtn.style.cursor = 'pointer';
     }
 
     const ProfileBtn = document.getElementById('ProfileBtn')
@@ -580,6 +579,7 @@ async function startNewChat() {
                 if (tempWelcome) {
                     tempWelcome.remove();
                 }
+                document.getElementById('chatBox').innerHTML = '';
                 appendMessage('ai', result.welcomeMessage);
             }
 
@@ -994,7 +994,7 @@ function handleSidebarDisplay() {
     const sidebar = document.getElementById('sidebar');
     const collapsedSidebar = document.getElementById('collapsedSidebar');
     
-    if (window.innerWidth < 1000) {
+    if (window.innerWidth < 1200) {
         sidebar.style.display = 'none';
         collapsedSidebar.style.display = 'flex';
     }
@@ -1007,7 +1007,6 @@ function initializeTarotDrawing() {
     const drawThreeBtn = document.getElementById('drawThreeBtn');
     const tarotResult = document.getElementById('tarotResult');
     const copyResultBtn = document.getElementById('copyResultBtn');
-    const chatBox = document.getElementById('chatBox');
     
     // 뽑기 버튼 클릭 시 bottom sheet 토글
     if (drawTarotBtn) {
@@ -1922,7 +1921,6 @@ async function initializePage() {
                         await fetchSessions(userId);
                     }
                     
-                    initializeSessionCheck();
                 } catch (error) {
                     console.error('User info validation failed:', error);
                     const loginButton = document.getElementById('LoginBtn');
