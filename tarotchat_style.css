@@ -5,6 +5,10 @@ button {
   cursor: pointer;
 }
 
+body {
+  background-color: #F9F5ED;
+}
+
 /* 이미지 프리로딩 */
 body::after {
   position: absolute;
@@ -58,6 +62,60 @@ body::after {
   border-right: 1px solid #E0E0E0;
 }
 
+/* 사이드바 애니메이션 관련 추가 */
+#sidebar, #collapsedSidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  transition: transform 0.3s ease, opacity 0.3s ease, width 0.3s ease;
+  z-index: 10;
+}
+
+#sidebar {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+#sidebar.slide-out {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+#collapsedSidebar {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+#collapsedSidebar.slide-in {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* 콘텐츠 영역의 나머지 부분도 사이드바 변경에 따라 조정되도록 */
+#contentWrapper {
+  transition: margin-left 0.3s ease;
+  margin-left: 0px;
+}
+
+#contentWrapper.collapsed {
+  margin-left: 0px;
+}
+
+/* 트랜지션 중 내부 요소 숨김 방지 */
+#sidebar, #collapsedSidebar {
+  overflow: hidden;
+}
+
+/* 가이드 영역 트랜지션 */
+#serviceguide {
+  transition: margin-left 0.3s ease;
+  margin-left: 367px; /* 기본적으로 펼쳐진 사이드바 너비와 동일 */
+}
+
+#serviceguide.collapsed {
+  margin-left: 80px; /* 접힌 사이드바 너비와 동일 */
+}
 
 /* 메인 타이틀, 사이드바 접기 영역 */
 #TitleBox{
@@ -792,7 +850,7 @@ background-color: #E2DBCC;
   height: 73px;
   width: 73px;
   padding: 0;
-  background-color: #EBE4D4;
+  background-color: #F3EEE4;
   color: #38383A;
   border: none;
   border-radius: 36.5px; /* 원형 버튼 */
@@ -804,7 +862,7 @@ background-color: #E2DBCC;
 }
 
 #drawTarotBtn:hover {
-  background-color: #E2DBCC;
+  background-color: #EBE4D4;
 }
 
 #drawTarotBtnIcon {
@@ -982,7 +1040,6 @@ background-color: #E2DBCC;
   position: fixed;
   bottom: 30px;
   left: 50%;
-  transform: translateX(-50%) translateY(100px);
   background-color: rgba(56, 56, 58, 0.9);
   color: #EBE4D4;
   padding: 12px 20px;
@@ -991,7 +1048,7 @@ background-color: #E2DBCC;
   font-weight: 500;
   z-index: 32;
   opacity: 0;
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: opacity 0.3s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -1017,7 +1074,9 @@ background-color: #E2DBCC;
 
 #beforelogin {
   position: absolute;
-  top: 100px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, calc(-50% - 40px));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1040,8 +1099,9 @@ background-color: #E2DBCC;
 }
 
 #bl_title {
+  max-width: 100%;
   font-family: "Red Rose", serif;
-  font-size: 70px;
+  font-size: clamp(30px, 50vw, 70px);
   font-weight: 700;
   text-align: center;
   margin-left: auto;
@@ -1049,10 +1109,11 @@ background-color: #E2DBCC;
   color: #38383A;
   margin-bottom: 20px;
   line-height: 1.1;
+  white-space: nowrap;
 }
 
 #bl_subtitle {
-  font-size: 20px;
+  font-size: clamp(10px, 10vw, 20px);
   font-weight: 400;
   text-align: center;
   color: #38383A;
@@ -1061,6 +1122,7 @@ background-color: #E2DBCC;
   margin-right: auto;
   line-height: 1.4;
   max-width: 500px;
+  white-space: nowrap;
 }
 
 #example_questions {
@@ -1069,6 +1131,7 @@ background-color: #E2DBCC;
   align-items: center;
   width: 100%;
   max-width: 470px;
+  min-width: 320px;
   margin-bottom: 40px;
   margin-left: auto;
   margin-right: auto;
@@ -1083,10 +1146,11 @@ background-color: #E2DBCC;
   border-radius: 12px;
   background-color: #38383A;
   color: #F9F5ED;
-  font-size: 16px;
+  font-size: clamp(10px, 3vw, 16px);
   font-weight: 500;
   text-align: center;
   box-sizing: border-box;
+  word-break: keep-all;
 }
 
 #extext2{

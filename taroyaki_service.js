@@ -1,3 +1,5 @@
+// import logger from './logger.js';
+
 const config = {
     clientId: "76pqubnjqg6o5ng1l3235j27sl",
     clientSecret: "1l33vpl1rqj8ibbiae4pd2tslgu5hchp54cgg6f7n89affpccc9j",
@@ -690,10 +692,13 @@ async function fetchSessions(userId) {
         hideSessionLoadingIndicator();
         displaySessions(sessions);
         displayWelcomeMessage();
+        // logger.logSessionFetch(userId, sessions.length);
+
         return sessions;
     } catch (error) {
         console.error('Error fetching sessions:', error);
         hideSessionLoadingIndicator();
+        // logger.logSessionFetch(userId, 0);
         if (error.message.includes('token')) {
             handleLogout();
         }
@@ -993,10 +998,25 @@ function closeDeleteModal() {
 function handleSidebarDisplay() {
     const sidebar = document.getElementById('sidebar');
     const collapsedSidebar = document.getElementById('collapsedSidebar');
+    const contentWrapper = document.getElementById('contentWrapper');
+    const serviceguide = document.getElementById('serviceguide');
     
     if (window.innerWidth < 1200) {
-        sidebar.style.display = 'none';
-        collapsedSidebar.style.display = 'flex';
+        // 작은 화면에서는 접힌 사이드바로 전환
+        sidebar.classList.add('slide-out');
+        if (!collapsedSidebar.classList.contains('slide-in')) {
+            collapsedSidebar.style.display = 'flex';
+            setTimeout(() => {
+                collapsedSidebar.classList.add('slide-in');
+                contentWrapper.classList.add('collapsed');
+                if (serviceguide) serviceguide.classList.add('collapsed');
+            }, 10);
+            setTimeout(() => {
+                if (sidebar.classList.contains('slide-out')) {
+                    sidebar.style.display = 'none';
+                }
+            }, 300);
+        }
     }
 }
 
@@ -1710,30 +1730,98 @@ function initializeSidebarControls() {
     const collapsedSidebar = document.getElementById('collapsedSidebar');
     const collapseBtn = document.getElementById('collapseBtn');
     const expandBtn = document.getElementById('expandBtn');
-    const newchatBtn=document.getElementById('newChatButton');
+    const contentWrapper = document.getElementById('contentWrapper');
+    const serviceguide = document.getElementById('serviceguide');
+    const newchatBtn = document.getElementById('newChatButton');
     const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
     const collapsedSettingsBtn = document.getElementById('collapsedSettingsBtn');
 
-    // 초기 로드 시 화면 크기에 따른 사이드바 상태 설정
-    handleSidebarDisplay();
+    // 초기 설정
+    if (window.innerWidth < 1200) {
+        // 작은 화면에서는 접힌 사이드바로 시작
+        sidebar.classList.add('slide-out');
+        collapsedSidebar.classList.add('slide-in');
+        collapsedSidebar.style.display = 'flex';
+        contentWrapper.classList.add('collapsed');
+        if (serviceguide) serviceguide.classList.add('collapsed');
+    } else {
+        // 큰 화면에서는 펼쳐진 사이드바로 시작
+        sidebar.style.display = 'flex';
+        collapsedSidebar.style.display = 'none';
+    }
 
-    // 윈도우 크기 변경 이벤트 리스너 추가
-    window.addEventListener('resize', handleSidebarDisplay);
-
+    // 접기 버튼 클릭 시
     if (collapseBtn && sidebar && collapsedSidebar) {
         collapseBtn.addEventListener('click', () => {
-            sidebar.style.display = 'none';
+            // 펼쳐진 사이드바 슬라이드 아웃
+            sidebar.classList.add('slide-out');
+            
+            // 접힌 사이드바 표시하고 슬라이드 인
             collapsedSidebar.style.display = 'flex';
+            
+            // 약간의 딜레이 후 애니메이션 적용 (DOM 렌더링 시간 고려)
+            setTimeout(() => {
+                collapsedSidebar.classList.add('slide-in');
+                contentWrapper.classList.add('collapsed');
+                if (serviceguide) serviceguide.classList.add('collapsed');
+            }, 10);
+            
+            // 애니메이션 완료 후 처리
+            setTimeout(() => {
+                if (sidebar.classList.contains('slide-out')) {
+                    sidebar.style.display = 'none';
+                }
+            }, 300); // 트랜지션 시간과 동일하게 설정
         });
     }
 
-    if (expandBtn && sidebar && collapsedSidebar && window.innerWidth >= 1000) {
+    // 펼치기 버튼 클릭 시
+    if (expandBtn && sidebar && collapsedSidebar) {
         expandBtn.addEventListener('click', () => {
+            // 접힌 사이드바 슬라이드 아웃
+            collapsedSidebar.classList.remove('slide-in');
+            
+            // 펼쳐진 사이드바 표시하고 슬라이드 인
             sidebar.style.display = 'flex';
-            collapsedSidebar.style.display = 'none';
+            
+            // 약간의 딜레이 후 애니메이션 적용 (DOM 렌더링 시간 고려)
+            setTimeout(() => {
+                sidebar.classList.remove('slide-out');
+                contentWrapper.classList.remove('collapsed');
+                if (serviceguide) serviceguide.classList.remove('collapsed');
+            }, 10);
+            
+            // 애니메이션 완료 후 처리
+            setTimeout(() => {
+                if (!collapsedSidebar.classList.contains('slide-in')) {
+                    collapsedSidebar.style.display = 'none';
+                }
+            }, 300); // 트랜지션 시간과 동일하게 설정
         });
     }
 
+    // 윈도우 크기 변경 이벤트 처리
+    window.addEventListener('resize', () => {
+        if (window.innerWidth < 1200) {
+            if (!sidebar.classList.contains('slide-out')) {
+                // 작은 화면에서 펼쳐진 사이드바가 있으면 접기
+                sidebar.classList.add('slide-out');
+                collapsedSidebar.style.display = 'flex';
+                setTimeout(() => {
+                    collapsedSidebar.classList.add('slide-in');
+                    contentWrapper.classList.add('collapsed');
+                    if (serviceguide) serviceguide.classList.add('collapsed');
+                }, 10);
+                setTimeout(() => {
+                    if (sidebar.classList.contains('slide-out')) {
+                        sidebar.style.display = 'none';
+                    }
+                }, 300);
+            }
+        }
+    });
+
+    // 새 대화 버튼 이벤트 핸들러
     if (newchatBtn) {
         newchatBtn.addEventListener('click', startNewChat);
     }
@@ -1744,7 +1832,7 @@ function initializeSidebarControls() {
 
     if (collapsedSettingsBtn) {
         collapsedSettingsBtn.addEventListener('click', () => {
-            const settingsBtn = document.getElementById('Settings');
+            const settingsBtn = document.getElementById('SettingsButton');
             if (settingsBtn) settingsBtn.click();
         });
     }
