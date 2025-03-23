@@ -1,4 +1,4 @@
-// import logger from './logger.js';
+import logger from './logger.js';
 
 const config = {
     clientId: "76pqubnjqg6o5ng1l3235j27sl",
@@ -21,14 +21,17 @@ const config = {
 let userId;
 let isWaitingForResponse = false;
 let isInputFocused = false;
+let isAutocompleteVisible = false;
+let isEmptySession = false;
+let cardAutocompleteInitialized = false;
+
 let typingAnimation = null;
 let refreshTimer = null;
-let isEmptySession = false;
 let sessionToDelete = null;
 let currentSessionId = null;
 let socket = null;
 let sessionLoadingAnimation = null;
-let isAutocompleteVisible = false;
+let loadingSessionId = null;
 let selectedCardIndex = -1;
 let filteredCards = [];
 
@@ -373,9 +376,11 @@ function disablePreLoginFeatures() {
     }
     // 카드 뽑기 버튼 비활성화
     const drawTarotBtn = document.getElementById('drawTarotBtn');
+    const drawTarotBtnIcon = document.getElementById('drawTarotBtnIcon')
     if (drawTarotBtn) {
         drawTarotBtn.disabled = true;
         drawTarotBtn.style.cursor = 'not-allowed';
+        drawTarotBtnIcon.style.opacity = 0.5;
     }
     // 프로필 모달 비활성화
     const ProfileBtn = document.getElementById('ProfileBtn')
@@ -407,11 +412,12 @@ function enablePostLoginFeatures() {
     
     // 카드 뽑기 버튼 활성화
     const drawTarotBtn = document.getElementById('drawTarotBtn');
+    const drawTarotBtnIcon = document.getElementById('drawTarotBtnIcon')
     if (drawTarotBtn) {
         drawTarotBtn.disabled = false;
         drawTarotBtn.style.cursor = 'pointer';
+        drawTarotBtnIcon.style.opacity = 1;
     }
-
     const ProfileBtn = document.getElementById('ProfileBtn')
     if(ProfileBtn) {
         ProfileBtn.disabled = false;
@@ -478,7 +484,7 @@ function updateProfileButton(userInfo) {
 
 function displayWelcomeMessage() {
     const chatBox = document.getElementById('chatBox');
-    chatBox.innerHTML = '<div class="message ai-message"><div class="message-content">어떤 이야기를 하고 싶나요?</div></div>';
+    chatBox.innerHTML = '<div class="message ai-message temporary-welcome"><div class="message-content">어떤 이야기를 하고 싶나요?</div></div>';
 }
 
 async function connectWebSocket() {
@@ -692,13 +698,13 @@ async function fetchSessions(userId) {
         hideSessionLoadingIndicator();
         displaySessions(sessions);
         displayWelcomeMessage();
-        // logger.logSessionFetch(userId, sessions.length);
+        logger.logSessionFetch(userId, sessions.length);
 
         return sessions;
     } catch (error) {
         console.error('Error fetching sessions:', error);
         hideSessionLoadingIndicator();
-        // logger.logSessionFetch(userId, 0);
+        logger.logSessionFetch(userId, 0);
         if (error.message.includes('token')) {
             handleLogout();
         }
@@ -736,13 +742,20 @@ function displaySessions(sessions) {
         sessionElement.appendChild(sessionName);
         sessionElement.appendChild(deleteButton);
         
+        // 현재 선택된 세션에 active 클래스 추가
         if (session.SessionId === currentSessionId) {
             sessionElement.classList.add('active');
+        }
+        
+        // 로딩 중인 세션에 loading 클래스 유지
+        if (session.SessionId === loadingSessionId) {
+            sessionElement.classList.add('loading');
         }
         
         sessionList.appendChild(sessionElement);
     });
 }
+
 
 function handleSessionClick(event) {
     const sessionElement = event.target.closest('.session-item');
@@ -761,9 +774,22 @@ function handleSessionClick(event) {
         // 중복 클릭 방지
         if (sessionElement.classList.contains('loading')) return;
         
+        // 로딩 상태 저장
+        loadingSessionId = sessionId;
+        
+        // 로딩 클래스 추가
         sessionElement.classList.add('loading');
+        
+        // 세션 로드
         loadSession(sessionId).finally(() => {
-            sessionElement.classList.remove('loading');
+            // 로딩 완료 시 상태 초기화
+            loadingSessionId = null;
+            
+            // loadSession이 완료된 후에만 로딩 클래스 제거
+            const updatedElement = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
+            if (updatedElement) {
+                updatedElement.classList.remove('loading');
+            }
         });
     }
 }
@@ -866,19 +892,25 @@ async function disconnectCurrentSession() {
                 messages[0].type === 'ai' && 
                 messages[0].content === "어떤 이야기를 하고 싶나요?") {
                     
-                // 3. 세션 삭제
-                console.log('Empty session deleted.')
-                const deleteResponse = await fetch(`${config.restEndpoint}/sessions/${currentSessionId}?userId=${userId}`, {
-                    method: 'DELETE',
-                    credentials: 'include'
-                });
-                
-                if (!deleteResponse.ok) {
-                    throw new Error('Failed to delete empty session');
+                // 3. 세션 삭제 - UI에서 먼저 해당 요소 제거
+                const sessionToRemove = document.querySelector(`.session-item[data-session-id="${currentSessionId}"]`);
+                if (sessionToRemove) {
+                    sessionToRemove.remove();
                 }
                 
-                // 4. 세션 목록 새로고침
-                await fetchSessions(userId);
+                console.log('Empty session deleted.');
+                
+                // 백그라운드에서 API 호출하여 서버에서 삭제
+                fetch(`${config.restEndpoint}/sessions/${currentSessionId}?userId=${userId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                }).catch(error => {
+                    console.error('Error deleting empty session:', error);
+                    // 에러 발생 시에만 세션 목록 새로고침
+                    fetchSessions(userId);
+                });
+                
+                // fetchSessions 호출하지 않음 - DOM 요소만 제거
             }
         } catch (error) {
             console.error('Error handling session disconnect:', error);
@@ -891,19 +923,21 @@ async function loadSession(sessionId) {
         return;
     }
 
-    // 이전 active 클래스 제거
-    const previousActive = document.querySelector('.session-item.active');
-    if (previousActive) {
-        previousActive.classList.remove('active');
-    }
-
-    if (currentSessionId) {
-        await disconnectCurrentSession();
-    }
-
-    currentSessionId = sessionId;
-
     try {
+        // 이전 active 클래스 제거
+        const previousActive = document.querySelector('.session-item.active');
+        if (previousActive) {
+            previousActive.classList.remove('active');
+        }
+
+        // 현재 세션 연결 해제 및 빈 세션 삭제 처리
+        if (currentSessionId) {
+            await disconnectCurrentSession();
+        }
+
+        // 세션 ID 업데이트
+        currentSessionId = sessionId;
+
         const idToken = localStorage.getItem('auth_token');
         if (!idToken) {
             console.error('No auth token available');
@@ -917,6 +951,11 @@ async function loadSession(sessionId) {
                 'Authorization': `Bearer ${idToken}`
             }
         });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error: ${response.status}`);
+        }
+        
         const messages = await response.json();
         
         isEmptySession = checkEmptySession(messages);
@@ -925,6 +964,11 @@ async function loadSession(sessionId) {
         if (!Array.isArray(messages)) {
             console.error('Unexpected response format');
             return;
+        }
+
+        const tempWelcome = document.querySelector('.temporary-welcome');
+        if (tempWelcome) {
+            tempWelcome.remove();
         }
 
         if (messages.length === 0) {
@@ -937,6 +981,7 @@ async function loadSession(sessionId) {
         await connectWebSocket();
 
         // WebSocket 연결이 성공한 후에만 active 클래스 추가
+        // loading 클래스는 함수 마지막의 finally에서 제거됨
         const newActive = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
         if (newActive) {
             newActive.classList.add('active');
@@ -946,6 +991,8 @@ async function loadSession(sessionId) {
         console.error('Error loading session:', error);
         // 에러 발생 시 currentSessionId 롤백
         currentSessionId = null;
+        // 에러 발생 시에만 로딩 상태 초기화 (finally에서 로딩 클래스 제거)
+        loadingSessionId = null;
     }
 }
 
@@ -1023,6 +1070,7 @@ function handleSidebarDisplay() {
 function initializeTarotDrawing() {
     const drawTarotBtn = document.getElementById('drawTarotBtn');
     const tarotBottomSheet = document.getElementById('tarotBottomSheet');
+    const bottomSheetContent = document.querySelector('.bottom-sheet-content');
     const drawOneBtn = document.getElementById('drawOneBtn');
     const drawThreeBtn = document.getElementById('drawThreeBtn');
     const tarotResult = document.getElementById('tarotResult');
@@ -1038,22 +1086,11 @@ function initializeTarotDrawing() {
             }
         });
     }
-        
-    // 외부 클릭 시 bottom sheet 닫기
-    document.addEventListener('click', (event) => {
-        if (tarotBottomSheet && tarotBottomSheet.classList.contains('open')) {
-            const bottomSheetContent = tarotBottomSheet.querySelector('.bottom-sheet-content');
-            if (bottomSheetContent && !bottomSheetContent.contains(event.target) && 
-                event.target !== drawTarotBtn && 
-                !drawTarotBtn.contains(event.target)) {
-                closeTarotBottomSheet();
-            }
-        }
-    });
     
     // 1개 뽑기 버튼 클릭 이벤트
     if (drawOneBtn) {
-        drawOneBtn.addEventListener('click', () => {
+        drawOneBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 이벤트 버블링 방지
             const card = drawRandomCards(1);
             displayDrawnCards(card);
         });
@@ -1061,16 +1098,18 @@ function initializeTarotDrawing() {
     
     // 3개 뽑기 버튼 클릭 이벤트
     if (drawThreeBtn) {
-        drawThreeBtn.addEventListener('click', () => {
+        drawThreeBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 이벤트 버블링 방지
             const cards = drawRandomCards(3);
             displayDrawnCards(cards);
         });
     }
     
-    // 복사 버튼 클릭 이벤트 (div 요소에 맞게 수정)
+    // 복사 버튼 클릭 이벤트
     if (copyResultBtn) {
-        copyResultBtn.addEventListener('click', () => {
-            copyToClipboard(); // 매개변수 제거, 함수 내에서 직접 textContent 참조
+        copyResultBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 이벤트 버블링 방지
+            copyToClipboard();
         });
     }
     
@@ -1087,6 +1126,21 @@ function initializeTarotDrawing() {
             subtree: true
         });
     }
+    
+    // 바텀 시트 콘텐츠 영역 클릭 시 이벤트 버블링 방지
+    if (bottomSheetContent) {
+        bottomSheetContent.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+    
+    // 바텀 시트 바깥 영역 클릭 시 닫히는 이벤트 추가
+    document.addEventListener('click', (e) => {
+        if (tarotBottomSheet && tarotBottomSheet.classList.contains('open') && 
+            !drawTarotBtn.contains(e.target)) {
+            closeTarotBottomSheet();
+        }
+    });
 }
 
 // 랜덤 카드 뽑기 함수
@@ -1137,10 +1191,11 @@ function copyToClipboard() {
             
             // 복사 성공 시 일시적으로 버튼 스타일 변경
             const copyBtn = document.getElementById('copyResultBtn');
-            if (copyBtn) {
-                copyBtn.style.backgroundColor = '#90EE90';
+            const copyIcn = document.getElementById('copyResultIcon');
+            if (copyIcn) {
+                copyIcn.style.backgroundImage = "url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/copied.png')";
                 setTimeout(() => {
-                    copyBtn.style.backgroundColor = '';
+                    copyIcn.style.backgroundImage = "url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/copy-card.png')";
                 }, 1000);
             }
         })
@@ -1204,6 +1259,9 @@ function closeTarotBottomSheet() {
 
 // 자동완성 모달 초기화
 function initializeCardAutocomplete() {
+    // 이미 초기화되었으면 중복 실행 방지
+    if (cardAutocompleteInitialized) return;
+    
     const messageInput = document.getElementById('messageInput');
     const autocompleteModal = document.getElementById('tarotCardAutocomplete');
     const suggestionList = document.getElementById('cardSuggestionList');
@@ -1235,6 +1293,9 @@ function initializeCardAutocomplete() {
             hideAutocomplete();
         }
     });
+    
+    // 초기화 완료 플래그 설정
+    cardAutocompleteInitialized = true;
 }
 
 // 입력 변경 핸들러
@@ -1524,6 +1585,7 @@ function handleIncomingMessage(data) {
 
 function displayMessages(messages) {
     const chatBox = document.getElementById('chatBox');
+    chatBox.innerHTML = '';
     messages.forEach((message, index) => {
         const role = message.type === 'human' ? 'user' : 'ai';
         let content = message.content;
@@ -1992,7 +2054,7 @@ async function initializePage() {
                 userId = tokenPayload.sub;
                 localStorage.setItem('userId', userId);
                 
-                // UI 업데이mo
+                // UI 업데이트
                 try {
                     const userInfo = await getUserInfo(idToken);
                     document.getElementById('userinfo1').innerText = userInfo.email;
