@@ -21,7 +21,8 @@ body::after {
            url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/set-hov.png')
            url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-hov.png')
            url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/close-hov2.png')
-           url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/copied.png');
+           url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/copied.png')
+           url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/kakao_login_large_wide.png');
 }
 
 #mainContent {
@@ -900,10 +901,10 @@ background-color: #E2DBCC;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
   box-shadow: 0px -4px 10px rgba(0, 0, 0, 0.1);
-  padding: 20px 20px 10px 20px;
+  padding: 10px 20px 10px 20px;
   width: 100%;
   max-width: 620px;
-  height: 160px;
+  height: auto;
   margin: 0 auto;
   box-sizing: border-box;
 }
@@ -957,17 +958,20 @@ background-color: #E2DBCC;
   display: flex;
   justify-content: center;
   gap: 20px;
-  margin-bottom: 10px;
+  margin-top: 10px;
 }
 
 .tarot-buttons button {
+  width: 195px;
+  height: 37px;
   padding: 10px 20px;
   background-color: #38383A;
   color: #F9F5ED;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  line-height: 132%;
+  font-weight: 500;
   cursor: pointer;
   transition: 0.3s ease;
 }
@@ -984,8 +988,10 @@ background-color: #E2DBCC;
   max-width: 471px;
   height: 51px;
   gap: 10px;
-  margin: 0 auto;
-  margin-bottom: 20px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  border-radius: 29px;
+  position: relative;
 }
 
 #tarotResult {
@@ -1001,12 +1007,16 @@ background-color: #E2DBCC;
   -webkit-box-shadow: none;
   font-family: 'Pretendard Variable';
   font-size: 14px;
+  font-weight: 600;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow-x: auto;
   white-space: nowrap;
+  color: #6A6456;
+  margin: 0 auto;
+  width: calc(100%-60px);
 }
 
 #tarotResult:empty:before {
@@ -1017,11 +1027,13 @@ background-color: #E2DBCC;
 .tarot-result-container {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   background-color: #F2EEE7;
   width: 471px;
   height: 51px;
   gap: 10px;
   border-radius: 29px;
+  position: realtive;
 }
 
 #copyResultBtn {
@@ -1054,7 +1066,7 @@ background-color: #E2DBCC;
 
 .toast-message {
   position: fixed;
-  bottom: 92px; /* 버튼보다 더 위에 위치하도록 조정 */
+  bottom: 72px; /* 버튼보다 더 위에 위치하도록 조정 */
   left: 50%;
   transform: translateX(-50%); /* 항상 가운데 정렬되도록 함 */
   background-color: rgba(56, 56, 58, 0.9);
@@ -1487,3 +1499,63 @@ background-color: #E2DBCC;
   font-weight: 600;
   color: #242529;
 }
+
+.beforelogin-appear {
+  -webkit-animation: fade-in-fwd 0.6s cubic-bezier(0.390, 0.575, 0.565, 1.000) both;
+	        animation: fade-in-fwd 0.6s cubic-bezier(0.390, 0.575, 0.565, 1.000) both;
+}
+
+
+@-webkit-keyframes fade-in-fwd {
+  0% {
+    -webkit-transform: translateZ(-80px);
+            transform: translateZ(-80px);
+    opacity: 0;
+  }
+  100% {
+    -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+    opacity: 1;
+  }
+}
+@keyframes fade-in-fwd {
+  0% {
+    -webkit-transform: translateZ(-80px);
+            transform: translateZ(-80px);
+    opacity: 0;
+  }
+  100% {
+    -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+    opacity: 1;
+  }
+}
+
+/* 각 요소별로 애니메이션 딜레이 추가 */
+#bl_logo {
+  animation-delay: 0.1s;
+}
+#bl_title {
+  animation-delay: 0.15s;
+}
+#bl_subtitle {
+  animation-delay: 0.2s;
+}
+#extext1 {
+  animation-delay: 0.25s;
+}
+#extext2 {
+  animation-delay: 0.3s;
+}
+#extext3 {
+  animation-delay: 0.35s;
+}
+#LoginBtn {
+  animation-delay: 0.4s;
+}
+
+/* 초기 상태에서 모든 요소 숨기기 */
+#bl_logo, #bl_title, #bl_subtitle, #extext1, #extext2, #extext3, #LoginBtn {
+  opacity: 0;
+}
+;

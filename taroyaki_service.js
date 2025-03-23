@@ -1190,7 +1190,6 @@ function copyToClipboard() {
             showToast();
             
             // 복사 성공 시 일시적으로 버튼 스타일 변경
-            const copyBtn = document.getElementById('copyResultBtn');
             const copyIcn = document.getElementById('copyResultIcon');
             if (copyIcn) {
                 copyIcn.style.backgroundImage = "url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/copied.png')";
@@ -1214,7 +1213,7 @@ function showToast() {
     // 2초 후 토스트 메시지 숨기기
     setTimeout(() => {
         toast.classList.remove('show');
-    }, 2000);
+    }, 1000);
 }
 
 // 복사 버튼 상태 업데이트
@@ -2040,6 +2039,25 @@ async function initializePage() {
             
             if (beforelogin) {
                 beforelogin.style.display = "block";
+                // 로그인 화면이 표시된 후에만 애니메이션 적용
+                setTimeout(() => {
+                    const beforeLoginElements = [
+                        'bl_logo', 
+                        'bl_title', 
+                        'bl_subtitle', 
+                        'extext1', 
+                        'extext2', 
+                        'extext3',
+                        'LoginBtn'
+                    ];
+                    
+                    beforeLoginElements.forEach(id => {
+                        const element = document.getElementById(id);
+                        if (element) {
+                            element.classList.add('beforelogin-appear');
+                        }
+                    });
+                }, 50); // 약간의 지연을 주어 DOM이 업데이트된 후 애니메이션 적용
             }
             return;
         }
