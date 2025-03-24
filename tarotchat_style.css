@@ -995,10 +995,12 @@ background-color: #E2DBCC;
 }
 
 #tarotResult {
-  flex: 1;
-  min-height: 30px;
+  width: 100%; /* Take the full width of the container */
+  height: 100%; /* Take full height of container */
   padding: 10px;
-  text-align: center;
+  display: flex; /* Use flexbox for vertical alignment */
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
   background-color: transparent;
   border: 0px transparent;
   resize: none;
@@ -1008,15 +1010,9 @@ background-color: #E2DBCC;
   font-family: 'Pretendard Variable';
   font-size: 14px;
   font-weight: 600;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow-x: auto;
   white-space: nowrap;
   color: #6A6456;
-  margin: 0 auto;
-  width: calc(100%-60px);
 }
 
 #tarotResult:empty:before {
@@ -1027,16 +1023,21 @@ background-color: #E2DBCC;
 .tarot-result-container {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   background-color: #F2EEE7;
-  width: 471px;
+  width: 100%;
+  max-width: 471px;
   height: 51px;
-  gap: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
   border-radius: 29px;
-  position: realtive;
+  position: relative;
 }
 
 #copyResultBtn {
+  position: absolute; /* Take the button out of the flow */
+  right: 20px; /* Keep same right margin */
+  top: 50%;
+  transform: translateY(-50%); /* Center vertically */
   width: 40px;
   height: 40px;
   background-color: transparent;
@@ -1046,7 +1047,6 @@ background-color: #E2DBCC;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 20px;
 }
 
 #copyResultBtn:disabled {
@@ -1061,7 +1061,39 @@ background-color: #E2DBCC;
   background-repeat: no-repeat;
   background-position: center;
   background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/copy-card.png');
-  transition: 0.3s ease;
+}
+
+.tarot-tooltip {
+  position: absolute;
+  bottom: 120px;
+  left: 20px;
+  width: 108px;
+  height: 38px;
+  background-color: #38383A;
+  color: #FFFFFF;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 132%;
+  z-index: 30;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s;
+  pointer-events: none; /* Ensures tooltip doesn't interfere with clicks */
+}
+
+.tarot-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 23px;
+  width: 16px;
+  height: 16px;
+  background-color: #38383A;
+  transform: rotate(45deg);
 }
 
 .toast-message {

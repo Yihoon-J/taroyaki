@@ -1,4 +1,4 @@
-import logger from './logger.js';
+// import logger from './logger.js';
 
 const config = {
     clientId: "76pqubnjqg6o5ng1l3235j27sl",
@@ -71,6 +71,7 @@ let drawnCards = [];
 function handleLogin() {
     const loginUrl = `${config.domain}/login?lang=ko&response_type=code&client_id=${config.clientId}&redirect_uri=${config.redirectUri}`;
     window.location.href = loginUrl;
+    console.log('handleLogin success');
 }
 
 async function getToken(authCode) {
@@ -97,7 +98,7 @@ async function getToken(authCode) {
     localStorage.setItem('auth_token', data.id_token);
     localStorage.setItem('access_token', data.access_token);
     localStorage.setItem('refresh_token', data.refresh_token);
-    
+    console.log('received token successfully');
     return data;
 }
 
@@ -111,6 +112,7 @@ async function getUserInfo(token) {
         headers: { Authorization: currentToken }
     });
     const userData = await response.json();
+    console.log('userdata received');
     return JSON.parse(userData.body);
 }
 
@@ -145,6 +147,7 @@ async function authenticatedFetch(url, options = {}) {
         } catch (error) {
             if (retryCount === MAX_RETRIES) {
                 await handleLogout();
+                console.log('too many auth retries');
                 throw error;
             }
             retryCount++;
@@ -188,7 +191,7 @@ async function handleAuthenticationFlow() {
         if (userId) {
             await fetchSessions(userId);
         }
-        
+        console.log('handle authentication complete');
         return true;
 
     } catch (error) {
@@ -213,7 +216,7 @@ function parseJwt(token) {
 }
 
 class TokenManager {
-    static REFRESH_THRESHOLD = 10 * 60; // 10분으로 증가
+    static REFRESH_THRESHOLD = 10 * 60; // 10분
 
     static getTokenExpiration(token) {
         const decoded = parseJwt(token);
@@ -237,6 +240,7 @@ class TokenManager {
         // Refresh 토큰이 만료된 경우
         if (now >= refreshExpiration) {
             await handleLogout();
+            console.log('refresh token expired');
             return false;
         }
 
@@ -245,6 +249,7 @@ class TokenManager {
             now >= accessExpiration - this.REFRESH_THRESHOLD * 1000) {
             try {
                 await refreshTokens(refreshToken);
+                conlsole.log('token refreshed');
                 return true;
             } catch (error) {
                 console.error('Token refresh failed:', error);
@@ -360,6 +365,7 @@ function handleLogout() {
     
     const logoutUrl = `${config.domain}/logout?client_id=${config.clientId}&logout_uri=${encodeURIComponent(config.logoutRedirectUri)}`;
     window.location.href = logoutUrl;
+    console.log('handlelogout');
 }
 
 function disablePreLoginFeatures() {
@@ -435,6 +441,7 @@ function enablePostLoginFeatures() {
     if (beforelogin) {
         beforelogin.style.display = "none";
     }
+
 }
 
 function initializeProfileModal() {
@@ -479,7 +486,7 @@ function updateProfileButton(userInfo) {
     const profileButton = document.getElementById('ProfileBtn');
     if (profileButton && userInfo.nickname) {
         profileButton.textContent = userInfo.nickname.charAt(0).toUpperCase();
-    }    
+    }
 }
 
 function displayWelcomeMessage() {
@@ -699,12 +706,12 @@ async function fetchSessions(userId) {
         displaySessions(sessions);
         displayWelcomeMessage();
         logger.logSessionFetch(userId, sessions.length);
-
+// 
         return sessions;
     } catch (error) {
         console.error('Error fetching sessions:', error);
         hideSessionLoadingIndicator();
-        logger.logSessionFetch(userId, 0);
+        // logger.logSessionFetch(userId, 0);
         if (error.message.includes('token')) {
             handleLogout();
         }
@@ -770,6 +777,7 @@ function handleSessionClick(event) {
     }
     
     const sessionId = sessionElement.getAttribute('data-session-id');
+    console.log(`clicked session: ${sessionId}`)
     if (sessionId && sessionId !== currentSessionId) {
         // 중복 클릭 방지
         if (sessionElement.classList.contains('loading')) return;
@@ -854,6 +862,7 @@ async function deleteSession() {
         fetchSessions(userId).catch(error => {
             console.error('Error refreshing sessions:', error);
         });
+        console.log('session deleted')
 
     } catch (error) {
         console.error('Error deleting session:', error);
@@ -986,6 +995,7 @@ async function loadSession(sessionId) {
         if (newActive) {
             newActive.classList.add('active');
         }
+        console.log('loadsession success')
 
     } catch (error) {
         console.error('Error loading session:', error);
@@ -1213,7 +1223,7 @@ function showToast() {
     // 2초 후 토스트 메시지 숨기기
     setTimeout(() => {
         toast.classList.remove('show');
-    }, 1000);
+    }, 2000);
 }
 
 // 복사 버튼 상태 업데이트
@@ -1229,6 +1239,60 @@ function updateCopyButtonState() {
         }
     }
 }
+
+// 툴팁 생성
+const tooltip = document.createElement('div');
+tooltip.className = 'tarot-tooltip';
+tooltip.textContent = '카드 뽑기';
+document.body.appendChild(tooltip);
+
+// 버튼 호버 시 동작
+function setupTooltip() {
+  const drawTarotBtn = document.getElementById('drawTarotBtn');
+  if (!drawTarotBtn) return;
+  
+  let hoverTimer;
+  
+  drawTarotBtn.addEventListener('mouseenter', () => {
+    // Start timer on hover
+    hoverTimer = setTimeout(() => {
+      // Position the tooltip relative to the button
+      const buttonRect = drawTarotBtn.getBoundingClientRect();
+      tooltip.style.left = `${buttonRect.left}px`;
+      tooltip.style.bottom = `${window.innerHeight - buttonRect.top + 10}px`;
+      
+      // Show tooltip
+      tooltip.style.opacity = '1';
+      tooltip.style.visibility = 'visible';
+    }, 500); // 1 second delay
+  });
+  
+  drawTarotBtn.addEventListener('mouseleave', () => {
+    // Clear timer if mouse leaves before 1 second
+    clearTimeout(hoverTimer);
+    
+    // Hide tooltip
+    tooltip.style.opacity = '0';
+    tooltip.style.visibility = 'hidden';
+  });
+}
+
+// Initialize tooltip after DOM is loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupTooltip);
+} else {
+  setupTooltip();
+}
+
+// If tooltip needs to be repositioned on window resize
+window.addEventListener('resize', () => {
+  const drawTarotBtn = document.getElementById('drawTarotBtn');
+  if (drawTarotBtn && tooltip.style.visibility === 'visible') {
+    const buttonRect = drawTarotBtn.getBoundingClientRect();
+    tooltip.style.left = `${buttonRect.left}px`;
+    tooltip.style.bottom = `${window.innerHeight - buttonRect.top + 10}px`;
+  }
+});
 
 // Bottom sheet 열기
 function openTarotBottomSheet() {
@@ -1529,7 +1593,7 @@ function insertCardName(cardName) {
     const cursorPosition = messageInput.selectionStart;
     const text = messageInput.value;
     
-    // 마지막 '/' 위치 찾기
+    // 마지막 slash 위치 찾기
     const lastSlashIndex = text.substring(0, cursorPosition).lastIndexOf('/');
     
     if (lastSlashIndex !== -1) {
@@ -1579,6 +1643,7 @@ function handleIncomingMessage(data) {
         enableInput();
     } else if (data.type === 'session_name_update') {
         updateSessionName(data.name);
+        console.log(`세션명 업데이트됨: ${data.name}`);
     }
 }
 
@@ -1907,7 +1972,6 @@ function initializeEventListeners() {
     const sendButton = document.getElementById('SendButton');
     if (messageInput && sendButton) {
             // Message input and send button listeners
-            console.log('window.ENV:', window.ENV);
             messageInput.addEventListener('input', updateInputAreaStyle);
             messageInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
