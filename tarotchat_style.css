@@ -844,7 +844,7 @@ background-color: #E2DBCC;
 /* 타로 카드 뽑기 버튼 */
 #drawTarotBtn {
   position: absolute;
-  bottom: 50px;
+  bottom: 53px;
   left: 20px;
   display: flex;
   align-items: center;
@@ -1591,3 +1591,38 @@ background-color: #E2DBCC;
   opacity: 0;
 }
 ;
+
+#newChatButton:disabled:hover {
+  background-color: #EBE4D4 !important;  /* 원래 배경색 유지 */
+  cursor: not-allowed;
+}
+
+#collapsedNewChatBtn:disabled:hover {
+  background-color: transparent !important;  /* 원래 배경색 유지 */
+  cursor: not-allowed;
+}
+
+#drawTarotBtn:disabled:hover {
+  background-color: #F3EEE4 !important;  /* 원래 배경색 유지 */
+  cursor: not-allowed;
+}
+
+/* 비활성화 상태에서 버튼 아이콘 변경 방지 */
+#newChatButton:disabled:hover #newChatButtonIcon {
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/new-def.png') !important;
+}
+
+#collapsedNewChatBtn:disabled:hover #collapsedNewChatBtnIcon {
+  background-image: url('https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/icons/new-def.png') !important;
+}
+
+#drawTarotBtn:disabled:hover {
+  background-color: #F3EEE4;  /* Original background color */
+}
+
+/* Hide tooltip when button is disabled */
+#drawTarotBtn:disabled ~ .tarot-tooltip,
+#drawTarotBtn:disabled:hover ~ .tarot-tooltip {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}

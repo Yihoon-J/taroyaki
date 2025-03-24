@@ -71,7 +71,6 @@ let drawnCards = [];
 function handleLogin() {
     const loginUrl = `${config.domain}/login?lang=ko&response_type=code&client_id=${config.clientId}&redirect_uri=${config.redirectUri}`;
     window.location.href = loginUrl;
-    console.log('handleLogin success');
 }
 
 async function getToken(authCode) {
@@ -373,19 +372,16 @@ function disablePreLoginFeatures() {
     const newChatButton = document.getElementById('newChatButton');
     if (newChatButton) {
         newChatButton.disabled = true;
-        newChatButton.style.cursor = 'not-allowed';
     }
     const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
     if (collapsedNewChatBtn) {
         collapsedNewChatBtn.disabled = true;
-        collapsedNewChatBtn.style.cursor = 'not-allowed';
     }
     // 카드 뽑기 버튼 비활성화
     const drawTarotBtn = document.getElementById('drawTarotBtn');
     const drawTarotBtnIcon = document.getElementById('drawTarotBtnIcon')
     if (drawTarotBtn) {
         drawTarotBtn.disabled = true;
-        drawTarotBtn.style.cursor = 'not-allowed';
         drawTarotBtnIcon.style.opacity = 0.5;
     }
     // 프로필 모달 비활성화
@@ -705,8 +701,8 @@ async function fetchSessions(userId) {
         hideSessionLoadingIndicator();
         displaySessions(sessions);
         displayWelcomeMessage();
-        logger.logSessionFetch(userId, sessions.length);
-// 
+        // logger.logSessionFetch(userId, sessions.length);
+ 
         return sessions;
     } catch (error) {
         console.error('Error fetching sessions:', error);
@@ -1248,34 +1244,37 @@ document.body.appendChild(tooltip);
 
 // 버튼 호버 시 동작
 function setupTooltip() {
-  const drawTarotBtn = document.getElementById('drawTarotBtn');
-  if (!drawTarotBtn) return;
-  
-  let hoverTimer;
-  
-  drawTarotBtn.addEventListener('mouseenter', () => {
-    // Start timer on hover
-    hoverTimer = setTimeout(() => {
-      // Position the tooltip relative to the button
-      const buttonRect = drawTarotBtn.getBoundingClientRect();
-      tooltip.style.left = `${buttonRect.left}px`;
-      tooltip.style.bottom = `${window.innerHeight - buttonRect.top + 10}px`;
-      
-      // Show tooltip
-      tooltip.style.opacity = '1';
-      tooltip.style.visibility = 'visible';
-    }, 500); // 1 second delay
-  });
-  
-  drawTarotBtn.addEventListener('mouseleave', () => {
-    // Clear timer if mouse leaves before 1 second
-    clearTimeout(hoverTimer);
+    const drawTarotBtn = document.getElementById('drawTarotBtn');
+    if (!drawTarotBtn) return;
     
-    // Hide tooltip
-    tooltip.style.opacity = '0';
-    tooltip.style.visibility = 'hidden';
-  });
-}
+    let hoverTimer;
+    
+    drawTarotBtn.addEventListener('mouseenter', () => {
+      // Only show tooltip if button is not disabled
+      if (drawTarotBtn.disabled) return;
+      
+      // Start timer on hover
+      hoverTimer = setTimeout(() => {
+        // Position the tooltip relative to the button
+        const buttonRect = drawTarotBtn.getBoundingClientRect();
+        tooltip.style.left = `${buttonRect.left}px`;
+        tooltip.style.bottom = `${window.innerHeight - buttonRect.top + 10}px`;
+        
+        // Show tooltip
+        tooltip.style.opacity = '1';
+        tooltip.style.visibility = 'visible';
+      }, 500); // 0.5 second delay
+    });
+    
+    drawTarotBtn.addEventListener('mouseleave', () => {
+      // Clear timer if mouse leaves before delay completes
+      clearTimeout(hoverTimer);
+      
+      // Hide tooltip
+      tooltip.style.opacity = '0';
+      tooltip.style.visibility = 'hidden';
+    });
+  }
 
 // Initialize tooltip after DOM is loaded
 if (document.readyState === 'loading') {
@@ -1669,6 +1668,7 @@ async function sendMessage() {
         } else {
             sendMessageToCurrentSession(message);
         }
+        console.log(`message sent: ${message}`);
         showTypingIndicator();
         messageInput.value = '';
     }
