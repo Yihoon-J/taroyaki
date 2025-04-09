@@ -30,7 +30,7 @@ def generate_session_name(user_message):
                 "messages": [
                     {
                         "role": "user",
-                        "content": f"사용자의 다음 고민을 바탕으로 30자 이내의 세션 이름을 생성해 줘. 자연스러운 제목이 되도록 '세션'이라는 표현은 쓰지 말아 줘: {user_message}"
+                        "content": f"사용자의 다음 고민을 요약해서 20자 이내의 대화 세션 이름을 생성해 줘. 따옴표를 쓰지 말아 줘: {user_message}"
                     }
                 ]
             })
@@ -79,12 +79,20 @@ def lambda_handler(event, context):
             update_session_name(user_id, session_id, new_session_name)
             send_session_name_update(connection_id, new_session_name)
 
-        # Bedrock Agent 호출
+        # 대화 내역을 세션 속성으로 변환
+        conversation_json = json.dumps(existing_messages)
+
+        # Bedrock Agent 호출 시 세션 속성으로 대화 내역 전달
         agent_response = bedrock_agent_runtime.invoke_agent(
-            agentId='IYS2YDOSEA',  # Bedrock Agent ID
-            agentAliasId='FMMAFGX1SC',  # Agent Alias ID
+            agentId='IYS2YDOSEA',
+            agentAliasId='OBS06DYGXR',
             sessionId=session_id,
-            inputText=user_message
+            inputText=user_message,
+            sessionState={
+                "sessionAttributes": {
+                    "conversation_history": conversation_json
+                }
+            }
         )
 
         # 응답 스트리밍

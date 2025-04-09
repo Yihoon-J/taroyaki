@@ -372,6 +372,7 @@ function disablePreLoginFeatures() {
     const newChatButton = document.getElementById('newChatButton');
     if (newChatButton) {
         newChatButton.disabled = true;
+        newChatButton.style.cursor = 'not-allowed';
     }
     const collapsedNewChatBtn = document.getElementById('collapsedNewChatBtn');
     if (collapsedNewChatBtn) {
@@ -915,7 +916,6 @@ async function disconnectCurrentSession() {
                     fetchSessions(userId);
                 });
                 
-                // fetchSessions 호출하지 않음 - DOM 요소만 제거
             }
         } catch (error) {
             console.error('Error handling session disconnect:', error);
