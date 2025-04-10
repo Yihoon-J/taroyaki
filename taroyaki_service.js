@@ -1,14 +1,6 @@
 // import logger from './logger.js';
 
-const config = {
-    clientId: "76pqubnjqg6o5ng1l3235j27sl",
-    clientSecret: "1l33vpl1rqj8ibbiae4pd2tslgu5hchp54cgg6f7n89affpccc9j",
-    domain: "https://us-east-1ofs2k3zki.auth.us-east-1.amazoncognito.com",
-    redirectUri: "https://dje3vsz99xjr1.cloudfront.net/index.html",
-    authEndpoint: "https://idqujgb116.execute-api.us-east-1.amazonaws.com/product/userinfo",
-    restEndpoint: "https://blgg29wto5.execute-api.us-east-1.amazonaws.com/product",
-    wsEndpoint: "wss://tt0ikgb3sd.execute-api.us-east-1.amazonaws.com/production/",
-    logoutRedirectUri: "https://dje3vsz99xjr1.cloudfront.net/index.html",
+let config = {
     tokenRefreshThreshold: 5 * 60,
     sessionDuration: 3 * 60, // 3분
     tokenExpirations: {
@@ -34,6 +26,58 @@ let sessionLoadingAnimation = null;
 let loadingSessionId = null;
 let selectedCardIndex = -1;
 let filteredCards = [];
+
+// 설정 로드
+async function loadConfig() {
+    try {
+        const configApiUrl = 'https://1arn0hzfhc.execute-api.us-east-1.amazonaws.com/product/config';
+        const response = await fetch(configApiUrl);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to load config: ${response.status}`);
+        }
+        
+        const responseData = await response.json();
+        console.log('API 응답 전체:', responseData);
+        
+        // API 응답이 { body: "..." } 형태인지 확인
+        let loadedConfig;
+        if (responseData.body && typeof responseData.body === 'string') {
+            try {
+                // body가 JSON 문자열인 경우 파싱
+                loadedConfig = JSON.parse(responseData.body);
+                console.log('파싱된 body:', loadedConfig);
+            } catch (e) {
+                // 문자열 파싱 실패 시 그대로 사용
+                loadedConfig = responseData;
+            }
+        } else {
+            // body 속성이 없는 경우 응답 전체 사용
+            loadedConfig = responseData;
+        }
+        
+        // 로드된 설정을 전역 설정과 병합
+        config = { ...config, ...loadedConfig };
+        
+        console.log('최종 config 객체:', config);
+        console.log('domain 값:', config.domain);
+        
+        // 설정 로드 완료 이벤트 발생
+        const configLoadedEvent = new Event('configLoaded');
+        document.dispatchEvent(configLoadedEvent);
+        
+        return true;
+    } catch (error) {
+        console.error('Error loading configuration:', error);
+        
+        // 설정 로드 실패 처리
+        if (typeof window.handleConfigError === 'function') {
+            window.handleConfigError();
+        }
+        
+        return false;
+    }
+}
 
 // 타로 카드 목록 정의
 const tarotCards = [
@@ -1116,6 +1160,12 @@ function initializeTarotDrawing() {
         copyResultBtn.addEventListener('click', (e) => {
             e.stopPropagation(); // 이벤트 버블링 방지
             copyToClipboard();
+            // 복사와 동시에 출력된 결과 초기화
+            const tarotResult = document.getElementById('tarotResult');
+            if (tarotResult) {
+                tarotResult.textContent = '';
+                updateCopyButtonState();
+            }
         });
     }
     
@@ -1642,7 +1692,7 @@ function handleIncomingMessage(data) {
         enableInput();
     } else if (data.type === 'session_name_update') {
         updateSessionName(data.name);
-        console.log(`세션명 업데이트됨: ${data.name}`);
+        console.log(`updated session name: ${data.name}`);
     }
 }
 
@@ -2083,11 +2133,18 @@ function initializeEventListeners() {
 
 async function initializePage() {
     try {
-        // 1. 기본 이벤트 리스너 초기화를 먼저 수행
+        // 1. 설정 로드
+        const configLoaded = await loadConfig();
+        if (!configLoaded) {
+            console.error('Failed to load configuration');
+            return;
+        }
+
+        // 2. 기본 이벤트 리스너 초기화를 먼저 수행
         initializeEventListeners();
         disablePreLoginFeatures();
 
-        // 2. URL 파라미터 체크
+        // 3. URL 파라미터 체크
         const urlParams = new URLSearchParams(window.location.search);
         const authCode = urlParams.get('code');
 
@@ -2096,7 +2153,7 @@ async function initializePage() {
             return;
         }
 
-        // 3. 인증 코드가 없는 경우 토큰 유효성 검증
+        // 4. 인증 코드가 없는 경우 토큰 유효성 검증
         const isValid = await TokenManager.validateTokenSet();
         if (!isValid) {
             const beforelogin = document.getElementById('beforelogin');
@@ -2128,7 +2185,7 @@ async function initializePage() {
 
         enablePostLoginFeatures();
         
-        // 4. 유효한 토큰이 있는 경우의 초기화
+        // 5. 유효한 토큰이 있는 경우의 초기화
         const idToken = localStorage.getItem('auth_token');
         if (idToken) {
             const tokenPayload = parseJwt(idToken);

@@ -23,6 +23,9 @@
 </head>
 
 <body>
+    <div id="configLoadingIndicator">
+        <div class="loading-spinner"></div>
+    </div>
     <div id="mainContent">
         <div id="sidebar" class="expanded">
             <div id="TitleBox">
@@ -193,6 +196,25 @@
             "aws-amplify": "https://cdn.jsdelivr.net/npm/aws-amplify@5.3.12/dist/esm/index.mjs"
           }
         }
+    </script>
+    <script>
+        // 설정 로딩 완료 이벤트 리스너
+        document.addEventListener('configLoaded', function() {
+            // 로딩 인디케이터 숨기기
+            const loadingIndicator = document.getElementById('configLoadingIndicator');
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'none';
+            }
+        });
+        
+        // 로딩 실패 시 처리
+        window.handleConfigError = function() {
+            // 로딩 인디케이터 변경
+            const loadingIndicator = document.getElementById('configLoadingIndicator');
+            if (loadingIndicator) {
+                loadingIndicator.innerHTML = '<div style="text-align: center;"><p>설정을 불러오는데 실패했습니다.</p><button onclick="location.reload()">다시 시도</button></div>';
+            }
+        };
     </script>
     <script type="module" src="/taroyaki_service.js"></script>
     <div id="toastMessage" class="toast-message">복사되었습니다</div>
