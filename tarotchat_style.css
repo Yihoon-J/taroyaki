@@ -822,6 +822,128 @@ background-color: #E2DBCC;
   margin-right: 70px;
 }
 
+/* 타로 카드 섹션 스타일 */
+.tarot-section {
+  margin: 15px 0;
+  font-family: 'Pretendard Variable';
+}
+
+.tarot-header {
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #332A1A;
+}
+
+.tarot-card-container {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+
+/* 대괄호로 감싸진 카드 이름용 인라인 컨테이너 */
+.tarot-inline {
+  display: inline-flex;
+  align-items: center;
+  margin: 5px 0;
+  flex-wrap: wrap;
+}
+
+.tarot-card-image {
+  width: 120px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+  margin: 0 15px 10px 5px;
+  cursor: pointer;
+}
+
+.tarot-card-image:hover {
+  transform: scale(1.05);
+}
+
+.tarot-card-name {
+  font-weight: 600;
+  color: #332A1A;
+  margin-top: 5px;
+}
+
+/* 반응형 스타일 */
+@media (max-width: 768px) {
+  .tarot-card-image {
+    width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .tarot-card-image {
+    width: 80px;
+  }
+  
+  .tarot-card-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .tarot-card-name {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+}
+
+/* 확대 모달 스타일 (카드 이미지 클릭 시 확대 기능 위함) */
+.tarot-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+.tarot-modal-content {
+  max-width: 80%;
+  max-height: 80%;
+}
+
+.tarot-modal-image {
+  width: 100%;
+  height: auto;
+  max-height: 80vh;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.tarot-modal-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: white;
+  font-size: 36px;
+  cursor: pointer;
+}
+
+/* 애니메이션 효과 */
+@keyframes card-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tarot-card-image {
+  animation: card-appear 0.5s ease-out forwards;
+}
+
 .ai-indicator{
   position: absolute;
   left: 10px;

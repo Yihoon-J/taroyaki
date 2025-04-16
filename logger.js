@@ -82,7 +82,7 @@ class TaroyakiLogger {
             await fetch(this.endpoint, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ logs: logsToSend })
+                body: JSON.stringify({ events: logsToSend }) // logs를 events로 변경
             });
 
             if (this.debugMode) {

@@ -1,4 +1,4 @@
-// import logger from './logger.js';
+import logger from './logger.js';
 
 let config = {
     tokenRefreshThreshold: 5 * 60,
@@ -26,6 +26,7 @@ let sessionLoadingAnimation = null;
 let loadingSessionId = null;
 let selectedCardIndex = -1;
 let filteredCards = [];
+let drawnCards = [];
 
 // 설정 로드
 async function loadConfig() {
@@ -109,8 +110,96 @@ const tarotCards = [
     "Page of Pentacles", "Knight of Pentacles", "Queen of Pentacles", "King of Pentacles"
 ];
 
-// 타로 카드 뽑기 관련 변수와 함수
-let drawnCards = [];
+const CardMapping = {
+    // 메이저 아르카나
+    'The Fool': 'the_fool',
+    'The Magician': 'the_magician',
+    'The High Priestess': 'the_high_priestess',
+    'The Empress': 'the_empress',
+    'The Emperor': 'the_emperor',
+    'The Hierophant': 'the_hierophant',
+    'The Lovers': 'the_lovers',
+    'The Chariot': 'the_chariot',
+    'Strength': 'strength',
+    'The Hermit': 'the_hermit',
+    'Wheel of Fortune': 'wheel_of_fortune',
+    'Justice': 'justice',
+    'The Hanged Man': 'the_hanged_man',
+    'Death': 'death',
+    'Temperance': 'temperance',
+    'The Devil': 'the_devil',
+    'The Tower': 'the_tower',
+    'The Star': 'the_star',
+    'The Moon': 'the_moon',
+    'The Sun': 'the_sun',
+    'Judgement': 'judgement',
+    'The World': 'the_world',
+    
+    // 완드 (Wands)
+    'Ace of Wands': 'ace_of_wands',
+    'Two of Wands': 'two_of_wands',
+    'Three of Wands': 'three_of_wands',
+    'Four of Wands': 'four_of_wands',
+    'Five of Wands': 'five_of_wands',
+    'Six of Wands': 'six_of_wands',
+    'Seven of Wands': 'seven_of_wands',
+    'Eight of Wands': 'eight_of_wands',
+    'Nine of Wands': 'nine_of_wands',
+    'Ten of Wands': 'ten_of_wands',
+    'Page of Wands': 'page_of_wands',
+    'Knight of Wands': 'knight_of_wands',
+    'Queen of Wands': 'queen_of_wands',
+    'King of Wands': 'king_of_wands',
+    
+    // 컵스 (Cups)
+    'Ace of Cups': 'ace_of_cups',
+    'Two of Cups': 'two_of_cups',
+    'Three of Cups': 'three_of_cups',
+    'Four of Cups': 'four_of_cups',
+    'Five of Cups': 'five_of_cups',
+    'Six of Cups': 'six_of_cups',
+    'Seven of Cups': 'seven_of_cups', 
+    'Eight of Cups': 'eight_of_cups',
+    'Nine of Cups': 'nine_of_cups',
+    'Ten of Cups': 'ten_of_cups',
+    'Page of Cups': 'page_of_cups',
+    'Knight of Cups': 'knight_of_cups',
+    'Queen of Cups': 'queen_of_cups',
+    'King of Cups': 'king_of_cups',
+    
+    // 소드 (Swords)
+    'Ace of Swords': 'ace_of_swords',
+    'Two of Swords': 'two_of_swords',
+    'Three of Swords': 'three_of_swords',
+    'Four of Swords': 'four_of_swords',
+    'Five of Swords': 'five_of_swords',
+    'Six of Swords': 'six_of_swords',
+    'Seven of Swords': 'seven_of_swords',
+    'Eight of Swords': 'eight_of_swords',
+    'Nine of Swords': 'nine_of_swords',
+    'Ten of Swords': 'ten_of_swords',
+    'Page of Swords': 'page_of_swords',
+    'Knight of Swords': 'knight_of_swords',
+    'Queen of Swords': 'queen_of_swords',
+    'King of Swords': 'king_of_swords',
+    
+    // 펜타클 (Pentacles)
+    'Ace of Pentacles': 'ace_of_pentacles',
+    'Two of Pentacles': 'two_of_pentacles',
+    'Three of Pentacles': 'three_of_pentacles',
+    'Four of Pentacles': 'four_of_pentacles',
+    'Five of Pentacles': 'five_of_pentacles',
+    'Six of Pentacles': 'six_of_pentacles',
+    'Seven of Pentacles': 'seven_of_pentacles',
+    'Eight of Pentacles': 'eight_of_pentacles',
+    'Nine of Pentacles': 'nine_of_pentacles',
+    'Ten of Pentacles': 'ten_of_pentacles',
+    'Page of Pentacles': 'page_of_pentacles',
+    'Knight of Pentacles': 'knight_of_pentacles',
+    'Queen of Pentacles': 'queen_of_pentacles',
+    'King of Pentacles': 'king_of_pentacles'
+  };
+
 
 function handleLogin() {
     const loginUrl = `${config.domain}/login?lang=ko&response_type=code&client_id=${config.clientId}&redirect_uri=${config.redirectUri}`;
@@ -746,13 +835,13 @@ async function fetchSessions(userId) {
         hideSessionLoadingIndicator();
         displaySessions(sessions);
         displayWelcomeMessage();
-        // logger.logSessionFetch(userId, sessions.length);
+        logger.logSessionFetch(userId, sessions.length);
  
         return sessions;
     } catch (error) {
         console.error('Error fetching sessions:', error);
         hideSessionLoadingIndicator();
-        // logger.logSessionFetch(userId, 0);
+        logger.logSessionFetch(userId, 0);
         if (error.message.includes('token')) {
             handleLogout();
         }
@@ -1670,6 +1759,7 @@ function handleIncomingMessage(data) {
         if (lastMessage && lastMessage.classList.contains('ai-message')) {
             const contentDiv = lastMessage.querySelector('.message-content');
             if (contentDiv) {
+                // 메시지 누적 시 타로 카드 처리는 스트림이 완료된 후에 한 번에 처리
                 contentDiv.innerHTML += content.replace(/\n/g, '<br>');
             } else {
                 hideTypingIndicator();
@@ -1683,6 +1773,18 @@ function handleIncomingMessage(data) {
         scrollToBottom();
     } else if (data.type === 'end') {
         hideTypingIndicator();
+        
+        // 스트림 종료 시 누적된 전체 메시지에 대해 타로 카드 처리 적용
+        const lastMessage = document.querySelector('.message:first-child');
+        if (lastMessage && lastMessage.classList.contains('ai-message')) {
+            const contentDiv = lastMessage.querySelector('.message-content');
+            if (contentDiv) {
+                const rawContent = contentDiv.innerText; // <br>을 \n으로 처리하기 위해 텍스트 추출
+                const processedContent = processTarotCardNames(rawContent);
+                contentDiv.innerHTML = processedContent.replace(/\n/g, '<br>');
+            }
+        }
+        
         console.log('Stream ended');
         scrollToBottom();
         enableInput();
@@ -1692,7 +1794,7 @@ function handleIncomingMessage(data) {
         enableInput();
     } else if (data.type === 'session_name_update') {
         updateSessionName(data.name);
-        console.log(`updated session name: ${data.name}`);
+        console.log(`세션명 업데이트됨: ${data.name}`);
     }
 }
 
@@ -1732,13 +1834,20 @@ function appendMessage(sender, message) {
     
     const contentElement = document.createElement('div');
     contentElement.className = 'message-content';
-    contentElement.innerHTML = message.replace(/\n/g, '<br>');
+    
+    // AI 메시지인 경우 타로 카드 처리
+    if (sender === 'ai') {
+        const processedMessage = processTarotCardNames(message);
+        contentElement.innerHTML = processedMessage.replace(/\n/g, '<br>');
+    } else {
+        contentElement.innerHTML = message.replace(/\n/g, '<br>');
+    }
     
     messageElement.appendChild(contentElement);
     
     chatBox.insertBefore(messageElement, chatBox.firstChild);
     
-    // AI 메시지인 경우 인디케이터 추가 (별도 요소로)
+    // AI 메시지인 경우 인디케이터 추가
     if (sender === 'ai') {
         const indicatorElement = document.createElement('div');
         indicatorElement.className = 'ai-indicator';
@@ -1794,6 +1903,78 @@ function extractContent(contentData) {
     }
     return JSON.stringify(contentData);
 }
+
+//이미지 URL 생성
+function getTarotCardImageUrl(cardName) {
+    const baseUrl = 'https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/cards/';
+    const fileName = CardMapping[cardName];
+    if (fileName) {
+      return `${baseUrl}${fileName}.png`;
+    }
+    console.warn(`Card mapping not found for: ${cardName}`);
+    return null;
+  }
+
+// 메시지 내용에서 타로 카드 이름 찾아 이미지 삽입
+function processTarotCardNames(messageContent) {
+    // 대괄호로 감싸진 카드 이름을 찾는 정규식 패턴
+    const bracketPattern = /\[([^\]]+)\]/g;
+    
+    // 기존 패턴도 유지 (대괄호 패턴이 적용되지 않은 이전 메시지를 위해)
+    const legacyPatterns = [
+      /([^(]+)\s+\(([^)]+)\):/g,  // "현재 상황 (Eight of Wands):" 패턴
+      /([^:]+):\s+([A-Z][a-zA-Z\s]+of\s+[A-Z][a-zA-Z]+|[A-Z][a-zA-Z\s]+)/g // "카드명: Eight of Wands" 패턴
+    ];
+  
+    let processedContent = messageContent;
+    
+    // 1. 대괄호 패턴 처리 (새로운 형식)
+    processedContent = processedContent.replace(bracketPattern, (match, cardName) => {
+      // 카드 이름이 매핑에 있는지 확인
+      if (tarotCardMapping[cardName]) {
+        const imageUrl = getTarotCardImageUrl(cardName);
+        return `<div class="tarot-inline">
+                  <span class="tarot-card-name">[${cardName}]</span>
+                  <img src="${imageUrl}" alt="${cardName}" class="tarot-card-image">
+                </div>`;
+      }
+      return match; // 매핑이 없으면 원본 텍스트 반환
+    });
+    
+    // 2. 기존 패턴 처리 (이전 형식 호환성 유지)
+    
+    // 첫 번째 패턴: "xxx (카드이름):" 형식 처리
+    processedContent = processedContent.replace(legacyPatterns[0], (match, prefix, cardName) => {
+      // 카드 이름이 매핑에 있는지 확인
+      if (tarotCardMapping[cardName]) {
+        const imageUrl = getTarotCardImageUrl(cardName);
+        return `<div class="tarot-section">
+                  <div class="tarot-header">${prefix} (${cardName}):</div>
+                  <div class="tarot-card-container">
+                    <img src="${imageUrl}" alt="${cardName}" class="tarot-card-image">
+                  </div>
+                </div>`;
+      }
+      return match; // 매핑이 없으면 원본 텍스트 반환
+    });
+    
+    // 두 번째 패턴: "카드명: Eight of Wands" 형식 처리
+    processedContent = processedContent.replace(legacyPatterns[1], (match, prefix, cardName) => {
+      if (tarotCardMapping[cardName]) {
+        const imageUrl = getTarotCardImageUrl(cardName);
+        return `<div class="tarot-section">
+                  <div class="tarot-header">${prefix}:</div>
+                  <div class="tarot-card-container">
+                    <img src="${imageUrl}" alt="${cardName}" class="tarot-card-image">
+                    <div class="tarot-card-name">${cardName}</div>
+                  </div>
+                </div>`;
+      }
+      return match;
+    });
+    
+    return processedContent;
+  }
 
 function showTypingIndicator() {
     // 기존 인디케이터가 있다면 제거

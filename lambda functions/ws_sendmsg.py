@@ -85,7 +85,7 @@ def lambda_handler(event, context):
         # Bedrock Agent 호출 시 세션 속성으로 대화 내역 전달
         agent_response = bedrock_agent_runtime.invoke_agent(
             agentId='IYS2YDOSEA',
-            agentAliasId='OBS06DYGXR',
+            agentAliasId='K70SAWBLL5',
             sessionId=session_id,
             inputText=user_message,
             sessionState={
