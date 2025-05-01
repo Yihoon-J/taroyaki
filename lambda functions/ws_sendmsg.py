@@ -1,6 +1,9 @@
 import json
 import boto3
+import time
 from datetime import datetime
+import traceback
+import re
 
 # Bedrock Runtime 클라이언트 초기화
 bedrock_runtime = boto3.client('bedrock-runtime')
@@ -10,6 +13,11 @@ gateway_client = boto3.client('apigatewaymanagementapi', endpoint_url='https://t
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('tarotchat_ddb')
 
+# 재시도 설정
+MAX_RETRY_ATTEMPTS = 3  # 최대 재시도 횟수
+INITIAL_RETRY_DELAY = 4  # 초기 재시도 간격 (초)
+BACKOFF_FACTOR = 1.5  # 재시도 간격 증가 계수
+
 def stream_to_connection(connection_id, content):
     try:
         gateway_client.post_to_connection(
@@ -18,6 +26,11 @@ def stream_to_connection(connection_id, content):
         )
     except Exception as e:
         print(f"Error streaming: {str(e)}")
+
+def is_aurora_resuming_error(error_str):
+    # Aurora DB 인스턴스 재개 중 에러인지 확인
+    pattern = r"Aurora DB instance.*is resuming after being auto-paused"
+    return bool(re.search(pattern, str(error_str)))
 
 def generate_session_name(user_message):
     try:
@@ -55,86 +68,281 @@ def send_session_name_update(connection_id, new_name):
         Data=json.dumps({"type": "session_name_update", "name": new_name}).encode('utf-8')
     )
 
-def lambda_handler(event, context):
-    connection_id = event['requestContext']['connectionId']
-    body = json.loads(event['body'])
-    user_message = body['message']
-    user_id = body['userId']
-    session_id = body['sessionId']
+def invoke_bedrock_agent_with_retry(connection_id, user_id, session_id, user_message, conversation_json):
+    """Bedrock Agent 호출 함수 (재시도 로직 포함)"""
+    retry_count = 0
+    retry_delay = INITIAL_RETRY_DELAY
+    last_error = None
+    
+    while retry_count < MAX_RETRY_ATTEMPTS:
+        try:
+            # Bedrock Agent 호출
+            agent_response = bedrock_agent_runtime.invoke_agent(
+                agentId='IYS2YDOSEA',
+                agentAliasId='K70SAWBLL5',
+                sessionId=session_id,
+                inputText=user_message,
+                sessionState={
+                    "sessionAttributes": {
+                        "conversation_history": conversation_json
+                    }
+                }
+            )
+            
+            # 응답 스트리밍
+            full_response = ""
+            for event in agent_response['completion']:
+                if 'chunk' in event:
+                    chunk = event['chunk']['bytes'].decode('utf-8')
+                    stream_to_connection(connection_id, chunk)
+                    full_response += chunk
+            
+            return full_response
+            
+        except Exception as e:
+            last_error = e
+            error_str = str(e)
+            print(f"Agent 호출 에러 (시도 {retry_count+1}/{MAX_RETRY_ATTEMPTS}): {error_str}")
+            
+            # Aurora DB 재개 중 에러인 경우 재시도
+            if is_aurora_resuming_error(error_str):
+                retry_count += 1
+                
+                # 클라이언트에 재시도 중임을 알림
+                retry_message = f"서비스를 준비 중입니다... ({retry_count}/{MAX_RETRY_ATTEMPTS})"
+                try:
+                    gateway_client.post_to_connection(
+                        ConnectionId=connection_id,
+                        Data=json.dumps({
+                            "type": "error", 
+                            "message": error_str,
+                            "retry_info": {
+                                "current_attempt": retry_count,
+                                "max_attempts": MAX_RETRY_ATTEMPTS,
+                                "delay": retry_delay * BACKOFF_FACTOR
+                            }
+                        }).encode('utf-8')
+                    )
+                except Exception as notify_err:
+                    print(f"Error notifying client: {str(notify_err)}")
+                
+                # 재시도 전 대기 (지수 백오프)
+                time.sleep(retry_delay)
+                retry_delay *= BACKOFF_FACTOR
+            else:
+                # 다른 유형의 에러면 재시도하지 않고 바로 예외 발생
+                raise e
+    
+    # 최대 재시도 횟수 초과 시 마지막 에러 다시 발생
+    raise last_error
 
+# 세션 초기화 처리 함수 (새로 추가)
+def handle_init_session(connection_id, user_id, session_id):
+    """
+    세션 초기화 처리 - 세션 정보와 대화 내역을 클라이언트에 전송
+    """
     try:
         # DynamoDB에서 세션 정보 가져오기
         response = table.get_item(Key={'UserId': user_id, 'SessionId': session_id})
         
         if 'Item' not in response:
-            raise Exception("Session not found")
+            raise Exception(f"Session not found: {session_id}")
 
         existing_item = response['Item']
         history_data = existing_item.get('History', '[]')
-        existing_messages = json.loads(history_data)
-
-        # 첫 메시지인 경우 세션 이름 생성
-        if len(existing_messages) == 1 and user_message != "":
-            new_session_name = generate_session_name(user_message)
-            update_session_name(user_id, session_id, new_session_name)
-            send_session_name_update(connection_id, new_session_name)
-
-        # 대화 내역을 세션 속성으로 변환
-        conversation_json = json.dumps(existing_messages)
-
-        # Bedrock Agent 호출 시 세션 속성으로 대화 내역 전달
-        agent_response = bedrock_agent_runtime.invoke_agent(
-            agentId='IYS2YDOSEA',
-            agentAliasId='K70SAWBLL5',
-            sessionId=session_id,
-            inputText=user_message,
-            sessionState={
-                "sessionAttributes": {
-                    "conversation_history": conversation_json
-                }
-            }
-        )
-
-        # 응답 스트리밍
-        full_response = ""
-        for event in agent_response['completion']:
-            if 'chunk' in event:
-                chunk = event['chunk']['bytes'].decode('utf-8')
-                stream_to_connection(connection_id, chunk)
-                full_response += chunk
-
-        current_time = datetime.now().isoformat()
+        session_name = existing_item.get('SessionName', '새 대화')
         
-        # 히스토리 업데이트
-        existing_messages.append({"type": "human", "content": user_message})
-        existing_messages.append({"type": "ai", "content": full_response})
-        updated_history = json.dumps(existing_messages)
-
-        # DynamoDB 업데이트
-        table.update_item(
-            Key={'UserId': user_id, 'SessionId': session_id},
-            UpdateExpression="SET History = :history, LastUpdatedAt = :last_updated_at",
-            ExpressionAttributeValues={
-                ':history': updated_history,
-                ':last_updated_at': current_time
-            }
-        )
-
-        # 완료 메시지 전송
+        # 세션 이름 전송
+        send_session_name_update(connection_id, session_name)
+        
+        # 대화 내역 전송
         gateway_client.post_to_connection(
             ConnectionId=connection_id,
-            Data=json.dumps({"type": "end"}).encode('utf-8')
+            Data=json.dumps({
+                "type": "session_history", 
+                "history": history_data
+            }).encode('utf-8')
         )
         
-        return {'statusCode': 200}
-
+        return True
+        
     except Exception as e:
-        print(f"Error: {str(e)}")
-        print(f"Error type: {type(e).__name__}")
-        import traceback
+        print(f"Session initialization error: {str(e)}")
+        try:
+            gateway_client.post_to_connection(
+                ConnectionId=connection_id,
+                Data=json.dumps({
+                    "type": "error", 
+                    "message": f"세션 초기화 중 오류가 발생했습니다: {str(e)}"
+                }).encode('utf-8')
+            )
+        except Exception as notify_err:
+            print(f"Error notifying client about session init error: {str(notify_err)}")
+        
+        return False
+
+# 전역 변수로 활성 연결 추적 맵 추가
+active_connections = {}  # session_id -> connection_id 매핑
+
+def lambda_handler(event, context):
+    connection_id = event['requestContext']['connectionId']
+    
+    # WebSocket 연결 이벤트 처리
+    if event.get('requestContext', {}).get('eventType') == 'CONNECT':
+        print(f"New WebSocket connection: {connection_id}")
+        # 새 연결 처리 로직 추가 (필요한 경우)
+        return {'statusCode': 200}
+    
+    # WebSocket 연결 종료 이벤트 처리
+    if event.get('requestContext', {}).get('eventType') == 'DISCONNECT':
+        # 연결 종료 시 연결 목록에서 제거
+        for session_id, conn_id in list(active_connections.items()):
+            if conn_id == connection_id:
+                del active_connections[session_id]
+                print(f"Removed disconnected connection for session: {session_id}")
+        return {'statusCode': 200}
+    
+    # 메시지 처리
+    try:
+        body = json.loads(event['body'])
+        action = body.get('action', '')
+        user_id = body.get('userId')
+        session_id = body.get('sessionId')
+        
+        if not session_id or not user_id:
+            raise Exception("Missing required parameters: userId and sessionId")
+        
+        # 액션 타입에 따라 다른 처리
+        if action == 'initSession':
+            # 이미 이 세션에 대한 활성 연결이 있는지 확인
+            if session_id in active_connections:
+                old_conn_id = active_connections[session_id]
+                if old_conn_id != connection_id:
+                    print(f"New connection for existing session. Old: {old_conn_id}, New: {connection_id}")
+                    try:
+                        # 기존 연결에 종료 알림
+                        gateway_client.post_to_connection(
+                            ConnectionId=old_conn_id,
+                            Data=json.dumps({
+                                "type": "connection_replaced", 
+                                "message": "Another client connected to this session"
+                            }).encode('utf-8')
+                        )
+                    except Exception as e:
+                        # 기존 연결이 이미 닫혔을 수 있음
+                        print(f"Error notifying old connection: {str(e)}")
+            
+            # 현재 연결을 활성 연결로 등록
+            active_connections[session_id] = connection_id
+            print(f"Registered connection {connection_id} for session {session_id}")
+            
+            # 세션 초기화 처리
+            success = handle_init_session(connection_id, user_id, session_id)
+            return {'statusCode': 200 if success else 500}
+            
+        elif action == 'sendMessage':
+            user_message = body.get('message', '')
+            
+            # 연결 상태 확인 및 업데이트
+            if session_id in active_connections and active_connections[session_id] != connection_id:
+                # 다른 연결이 이 세션을 사용 중인 경우 업데이트
+                print(f"Updating connection for session {session_id}: {connection_id}")
+                active_connections[session_id] = connection_id
+            
+            try:
+                # DynamoDB에서 세션 정보 가져오기
+                response = table.get_item(Key={'UserId': user_id, 'SessionId': session_id})
+                
+                if 'Item' not in response:
+                    raise Exception("Session not found")
+
+                existing_item = response['Item']
+                history_data = existing_item.get('History', '[]')
+                existing_messages = json.loads(history_data)
+
+                # 첫 메시지인 경우 세션 이름 생성
+                if len(existing_messages) == 1 and user_message != "":
+                    new_session_name = generate_session_name(user_message)
+                    update_session_name(user_id, session_id, new_session_name)
+                    send_session_name_update(connection_id, new_session_name)
+
+                # 대화 내역에 사용자 메시지 추가
+                existing_messages.append({"type": "human", "content": user_message})
+                
+                # 대화 내역을 세션 속성으로 변환
+                conversation_json = json.dumps(existing_messages)
+
+                # 재시도 로직이 포함된 함수를 사용하여 Bedrock Agent 호출
+                full_response = invoke_bedrock_agent_with_retry(
+                    connection_id, user_id, session_id, user_message, conversation_json
+                )
+
+                current_time = datetime.now().isoformat()
+                
+                # 히스토리 업데이트 (AI 응답 추가)
+                existing_messages.append({"type": "ai", "content": full_response})
+                updated_history = json.dumps(existing_messages)
+
+                # DynamoDB 업데이트
+                table.update_item(
+                    Key={'UserId': user_id, 'SessionId': session_id},
+                    UpdateExpression="SET History = :history, LastUpdatedAt = :last_updated_at",
+                    ExpressionAttributeValues={
+                        ':history': updated_history,
+                        ':last_updated_at': current_time
+                    }
+                )
+
+                # 완료 메시지 전송
+                gateway_client.post_to_connection(
+                    ConnectionId=connection_id,
+                    Data=json.dumps({"type": "end"}).encode('utf-8')
+                )
+                
+                return {'statusCode': 200}
+            except Exception as e:
+                print(f"Error: {str(e)}")
+                print(f"Error type: {type(e).__name__}")
+                print(f"Traceback: {traceback.format_exc()}")
+                
+                try:
+                    gateway_client.post_to_connection(
+                        ConnectionId=connection_id,
+                        Data=json.dumps({"type": "error", "message": str(e)}).encode('utf-8')
+                    )
+                except Exception as notify_err:
+                    print(f"Error notifying client about error: {str(notify_err)}")
+                    
+                return {'statusCode': 500}
+        
+        else:
+            # 지원하지 않는 액션
+            try:
+                gateway_client.post_to_connection(
+                    ConnectionId=connection_id,
+                    Data=json.dumps({
+                        "type": "error", 
+                        "message": f"지원하지 않는 액션: {action}"
+                    }).encode('utf-8')
+                )
+            except Exception as e:
+                print(f"Error sending unsupported action message: {str(e)}")
+                
+            return {'statusCode': 400}
+            
+    except Exception as e:
+        print(f"Unexpected error in lambda_handler: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
-        gateway_client.post_to_connection(
-            ConnectionId=connection_id,
-            Data=json.dumps({"type": "error", "message": str(e)}).encode('utf-8')
-        )
+        
+        try:
+            gateway_client.post_to_connection(
+                ConnectionId=connection_id,
+                Data=json.dumps({
+                    "type": "error", 
+                    "message": "서버 오류가 발생했습니다."
+                }).encode('utf-8')
+            )
+        except Exception as notify_err:
+            print(f"Error sending error notification: {str(notify_err)}")
+            
         return {'statusCode': 500}

@@ -17,6 +17,10 @@ let isAutocompleteVisible = false;
 let isEmptySession = false;
 let cardAutocompleteInitialized = false;
 
+// 전역 변수로 WebSocket 연결 상태 추적
+let isConnecting = false;
+let connectionQueue = [];
+
 let typingAnimation = null;
 let refreshTimer = null;
 let sessionToDelete = null;
@@ -24,93 +28,20 @@ let currentSessionId = null;
 let socket = null;
 let sessionLoadingAnimation = null;
 let loadingSessionId = null;
+
+let retryCount = 0;
+let maxRetries = 4;
+let retryDelay = 3000; // 초기 재시도 간격 (밀리초)
+let retryBackoffFactor = 1.5; // 지수 백오프 계수
+let retryMessageId = null; // 재시도 중 표시되는 메시지의 ID
+let retryTypingIndicator = null;
+let lastSentMessage = '';
+
 let selectedCardIndex = -1;
 let filteredCards = [];
 let drawnCards = [];
 
-// 설정 로드
-async function loadConfig() {
-    try {
-        const configApiUrl = 'https://1arn0hzfhc.execute-api.us-east-1.amazonaws.com/product/config';
-        const response = await fetch(configApiUrl);
-        
-        if (!response.ok) {
-            throw new Error(`Failed to load config: ${response.status}`);
-        }
-        
-        const responseData = await response.json();
-        console.log('API 응답 전체:', responseData);
-        
-        // API 응답이 { body: "..." } 형태인지 확인
-        let loadedConfig;
-        if (responseData.body && typeof responseData.body === 'string') {
-            try {
-                // body가 JSON 문자열인 경우 파싱
-                loadedConfig = JSON.parse(responseData.body);
-                console.log('파싱된 body:', loadedConfig);
-            } catch (e) {
-                // 문자열 파싱 실패 시 그대로 사용
-                loadedConfig = responseData;
-            }
-        } else {
-            // body 속성이 없는 경우 응답 전체 사용
-            loadedConfig = responseData;
-        }
-        
-        // 로드된 설정을 전역 설정과 병합
-        config = { ...config, ...loadedConfig };
-        
-        console.log('최종 config 객체:', config);
-        console.log('domain 값:', config.domain);
-        
-        // 설정 로드 완료 이벤트 발생
-        const configLoadedEvent = new Event('configLoaded');
-        document.dispatchEvent(configLoadedEvent);
-        
-        return true;
-    } catch (error) {
-        console.error('Error loading configuration:', error);
-        
-        // 설정 로드 실패 처리
-        if (typeof window.handleConfigError === 'function') {
-            window.handleConfigError();
-        }
-        
-        return false;
-    }
-}
-
-// 타로 카드 목록 정의
-const tarotCards = [
-    // 메이저 아르카나 (22장)
-    "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
-    "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
-    "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
-    "The Devil", "The Tower", "The Star", "The Moon", "The Sun",
-    "Judgement", "The World",
-    
-    // 마이너 아르카나 - 완드 (14장)
-    "Ace of Wands", "Two of Wands", "Three of Wands", "Four of Wands", "Five of Wands",
-    "Six of Wands", "Seven of Wands", "Eight of Wands", "Nine of Wands", "Ten of Wands",
-    "Page of Wands", "Knight of Wands", "Queen of Wands", "King of Wands",
-    
-    // 마이너 아르카나 - 컵스 (14장)
-    "Ace of Cups", "Two of Cups", "Three of Cups", "Four of Cups", "Five of Cups",
-    "Six of Cups", "Seven of Cups", "Eight of Cups", "Nine of Cups", "Ten of Cups",
-    "Page of Cups", "Knight of Cups", "Queen of Cups", "King of Cups",
-    
-    // 마이너 아르카나 - 소드 (14장)
-    "Ace of Swords", "Two of Swords", "Three of Swords", "Four of Swords", "Five of Swords",
-    "Six of Swords", "Seven of Swords", "Eight of Swords", "Nine of Swords", "Ten of Swords",
-    "Page of Swords", "Knight of Swords", "Queen of Swords", "King of Swords",
-    
-    // 마이너 아르카나 - 펜타클 (14장)
-    "Ace of Pentacles", "Two of Pentacles", "Three of Pentacles", "Four of Pentacles", "Five of Pentacles",
-    "Six of Pentacles", "Seven of Pentacles", "Eight of Pentacles", "Nine of Pentacles", "Ten of Pentacles",
-    "Page of Pentacles", "Knight of Pentacles", "Queen of Pentacles", "King of Pentacles"
-];
-
-const CardMapping = {
+const tarotCardMapping = {
     // 메이저 아르카나
     'The Fool': 'the_fool',
     'The Magician': 'the_magician',
@@ -199,6 +130,89 @@ const CardMapping = {
     'Queen of Pentacles': 'queen_of_pentacles',
     'King of Pentacles': 'king_of_pentacles'
   };
+
+// 설정 로드
+async function loadConfig() {
+    try {
+        const configApiUrl = 'https://1arn0hzfhc.execute-api.us-east-1.amazonaws.com/product/config';
+        const response = await fetch(configApiUrl);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to load config: ${response.status}`);
+        }
+        
+        const responseData = await response.json();
+        console.log('API 응답 전체:', responseData);
+        
+        // API 응답이 { body: "..." } 형태인지 확인
+        let loadedConfig;
+        if (responseData.body && typeof responseData.body === 'string') {
+            try {
+                // body가 JSON 문자열인 경우 파싱
+                loadedConfig = JSON.parse(responseData.body);
+                console.log('파싱된 body:', loadedConfig);
+            } catch (e) {
+                // 문자열 파싱 실패 시 그대로 사용
+                loadedConfig = responseData;
+            }
+        } else {
+            // body 속성이 없는 경우 응답 전체 사용
+            loadedConfig = responseData;
+        }
+        
+        // 로드된 설정을 전역 설정과 병합
+        config = { ...config, ...loadedConfig };
+        
+        console.log('최종 config 객체:', config);
+        console.log('domain 값:', config.domain);
+        
+        // 설정 로드 완료 이벤트 발생
+        const configLoadedEvent = new Event('configLoaded');
+        document.dispatchEvent(configLoadedEvent);
+        
+        return true;
+    } catch (error) {
+        console.error('Error loading configuration:', error);
+        
+        // 설정 로드 실패 처리
+        if (typeof window.handleConfigError === 'function') {
+            window.handleConfigError();
+        }
+        
+        return false;
+    }
+}
+
+// 타로 카드 목록 정의
+const tarotCards = [
+    // 메이저 아르카나 (22장)
+    "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
+    "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
+    "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
+    "The Devil", "The Tower", "The Star", "The Moon", "The Sun",
+    "Judgement", "The World",
+    
+    // 마이너 아르카나 - 완드 (14장)
+    "Ace of Wands", "Two of Wands", "Three of Wands", "Four of Wands", "Five of Wands",
+    "Six of Wands", "Seven of Wands", "Eight of Wands", "Nine of Wands", "Ten of Wands",
+    "Page of Wands", "Knight of Wands", "Queen of Wands", "King of Wands",
+    
+    // 마이너 아르카나 - 컵스 (14장)
+    "Ace of Cups", "Two of Cups", "Three of Cups", "Four of Cups", "Five of Cups",
+    "Six of Cups", "Seven of Cups", "Eight of Cups", "Nine of Cups", "Ten of Cups",
+    "Page of Cups", "Knight of Cups", "Queen of Cups", "King of Cups",
+    
+    // 마이너 아르카나 - 소드 (14장)
+    "Ace of Swords", "Two of Swords", "Three of Swords", "Four of Swords", "Five of Swords",
+    "Six of Swords", "Seven of Swords", "Eight of Swords", "Nine of Swords", "Ten of Swords",
+    "Page of Swords", "Knight of Swords", "Queen of Swords", "King of Swords",
+    
+    // 마이너 아르카나 - 펜타클 (14장)
+    "Ace of Pentacles", "Two of Pentacles", "Three of Pentacles", "Four of Pentacles", "Five of Pentacles",
+    "Six of Pentacles", "Seven of Pentacles", "Eight of Pentacles", "Nine of Pentacles", "Ten of Pentacles",
+    "Page of Pentacles", "Knight of Pentacles", "Queen of Pentacles", "King of Pentacles"
+];
+
 
 
 function handleLogin() {
@@ -624,66 +638,164 @@ function displayWelcomeMessage() {
     chatBox.innerHTML = '<div class="message ai-message temporary-welcome"><div class="message-content">어떤 이야기를 하고 싶나요?</div></div>';
 }
 
-async function connectWebSocket() {
-    const accessToken = localStorage.getItem('access_token');
-    if (!accessToken || !userId || !currentSessionId) {
-        console.error('Missing required parameters for WebSocket connection');
-        throw new Error('WebSocket connection failed: Missing parameters');
-    }
+// WebSocket 연결 상태 체크
+function isWebSocketConnected() {
+    return socket !== null && socket.readyState === WebSocket.OPEN;
+}
 
-    const wsUrl = `${config.wsEndpoint}?token=${accessToken}&userId=${userId}&sessionId=${currentSessionId}`;
-    console.log('Attempting to connect WebSocket with URL:', wsUrl);
-    
+// 안전한 WebSocket 닫기
+function safeCloseWebSocket() {
     if (socket) {
-        socket.close();
-    }
-
-    socket = new WebSocket(wsUrl);
-
-    return new Promise((resolve, reject) => {
-        socket.onopen = function() {
-            console.log('WebSocket connected for session:', currentSessionId);
-            resolve();
-        };
-
-        socket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            handleIncomingMessage(data);
-        };
-
-        socket.onclose = function(event) {
-            console.log('WebSocket closed:', event.code, event.reason);
-        };
-
-        socket.onerror = function(error) {
-            console.error('WebSocket error:', error);
-            reject(error);
-        };
-
-        // 연결 타임아웃 설정
-        const timeout = setTimeout(() => {
+        try {
+            // 이벤트 핸들러 제거하여 불필요한 콜백 방지
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onclose = null;
+            socket.onerror = null;
+            
             socket.close();
-            reject(new Error('WebSocket connection timeout'));
-        }, 5000); // 5초 타임아웃
+            console.log('WebSocket safely closed');
+        } catch (e) {
+            console.error('Error closing WebSocket:', e);
+        } finally {
+            socket = null;
+        }
+    }
+}
 
-        socket.onopen = function() {
-            clearTimeout(timeout);
-            console.log('WebSocket connected for session:', currentSessionId);
-            resolve();
-        };
-    });
+// WebSocket 연결 및 세션 초기화 함수 수정
+async function connectWebSocket() {
+    // 이미 연결 중이면 큐에 추가하고 대기
+    if (isConnecting) {
+        return new Promise((resolve, reject) => {
+            connectionQueue.push({ resolve, reject });
+        });
+    }
+    
+    isConnecting = true;
+    
+    try {
+        // 기존 연결이 있으면 먼저 닫기
+        if (socket) {
+            console.log('Explicitly closing existing WebSocket connection');
+            socket.onclose = null; // 이벤트 핸들러 제거
+            socket.close();
+            socket = null;
+        }
+        
+        const accessToken = localStorage.getItem('access_token');
+        if (!accessToken || !userId || !currentSessionId) {
+            throw new Error('Missing required parameters for WebSocket connection');
+        }
+        
+        const wsUrl = `${config.wsEndpoint}?token=${accessToken}&userId=${userId}&sessionId=${currentSessionId}`;
+        console.log('Connecting WebSocket for session:', currentSessionId);
+        
+        socket = new WebSocket(wsUrl);
+        
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                socket.close();
+                socket = null;
+                isConnecting = false;
+                reject(new Error('WebSocket connection timeout'));
+            }, 5000);
+            
+            socket.onopen = function() {
+                clearTimeout(timeout);
+                console.log('WebSocket successfully connected for session:', currentSessionId);
+                
+                try {
+                    initSession();
+                } catch (error) {
+                    console.error('Failed to send initSession message:', error);
+                }
+                
+                isConnecting = false;
+                
+                // 대기 중인 연결 요청 처리
+                while (connectionQueue.length > 0) {
+                    const { resolve } = connectionQueue.shift();
+                    resolve();
+                }
+                
+                resolve();
+            };
+            
+            socket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'connection_replaced') {
+                    console.log('Connection replaced by another client');
+                    socket.close();
+                    socket = null;
+                    return;
+                }
+                
+                handleIncomingMessage(data);
+            };
+            
+            socket.onclose = function(event) {
+                console.log('WebSocket closed:', event.code, event.reason);
+                socket = null;
+                isConnecting = false;
+            };
+            
+            socket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                clearTimeout(timeout);
+                socket = null;
+                isConnecting = false;
+                
+                // 대기 중인 연결 요청에 에러 전파
+                while (connectionQueue.length > 0) {
+                    const { reject } = connectionQueue.shift();
+                    reject(error);
+                }
+                
+                reject(error);
+            };
+        });
+    } catch (error) {
+        isConnecting = false;
+        throw error;
+    }
+}
+
+// 세션 초기화 요청 함수 (새로 추가)
+function initSession() {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket is not connected');
+        return;
+    }
+    
+    console.log('Initializing session:', currentSessionId);
+    
+    const payload = {
+        action: 'initSession',
+        userId: userId,
+        sessionId: currentSessionId
+    };
+    
+    socket.send(JSON.stringify(payload));
 }
 
 async function startNewChat() {
+    // 기존 WebSocket 연결이 있으면 먼저 닫기
     if (socket) {
+        console.log('Closing existing WebSocket connection before starting new chat');
         socket.close();
+        socket = null;
     }
     
     if (currentSessionId) {
         await disconnectCurrentSession();
     }
 
+    // 현재 세션 ID 초기화
     currentSessionId = null;
+    
+    // 채팅 박스 초기화
     document.getElementById('chatBox').innerHTML = '';
     document.getElementById('chatBox').innerHTML = 
         '<div class="message ai-message temporary-welcome"><div class="message-content">어떤 이야기를 하고 싶나요?</div></div>';
@@ -732,13 +844,21 @@ async function startNewChat() {
             updateNewChatButtonState();
 
             console.log('Attempting WebSocket connection...');
-            await connectWebSocket();
-            console.log('WebSocket connection established');
+            try {
+                await connectWebSocket();
+                console.log('WebSocket connection established');
+            } catch (wsError) {
+                console.error('Failed to establish WebSocket connection:', wsError);
+                // WebSocket 연결 실패해도 계속 진행 (UI는 이미 업데이트됨)
+                appendMessage('ai', '실시간 연결에 실패했습니다. 페이지를 새로고침해 주세요.');
+            }
         } else {
             throw new Error('Session ID not received from server');
         }
     } catch (error) {
         console.error('Error in startNewChat:', error);
+        appendMessage('ai', '새 대화를 시작하는데 실패했습니다. 다시 시도해 주세요.');
+    } finally {
         enableInput();
     }
 }
@@ -794,6 +914,9 @@ function sendMessageToCurrentSession(message) {
     isEmptySession = false;
     updateNewChatButtonState();
     
+    // 마지막 전송 메시지 저장
+    lastSentMessage = message;
+    
     const payload = {
         action: 'sendMessage',
         message: message,
@@ -802,6 +925,7 @@ function sendMessageToCurrentSession(message) {
     };
     socket.send(JSON.stringify(payload));
 }
+
 
 async function fetchSessions(userId) {
     if (!userId) {
@@ -1011,7 +1135,9 @@ async function deleteSession() {
 
 async function disconnectCurrentSession() {
     if (socket) {
+        console.log(`Disconnecting current session: ${currentSessionId}`);
         socket.close();
+        socket = null; // 소켓 객체 명시적으로 초기화
         
         try {
             // 1. 세션의 대화 내역 가져오기
@@ -1056,81 +1182,109 @@ async function disconnectCurrentSession() {
     }
 }
 
+// loadSession 함수 수정
 async function loadSession(sessionId) {
     if (currentSessionId === sessionId) {
         return;
     }
 
     try {
-        // 이전 active 클래스 제거
+        // 로딩 UI 설정
         const previousActive = document.querySelector('.session-item.active');
         if (previousActive) {
             previousActive.classList.remove('active');
         }
-
-        // 현재 세션 연결 해제 및 빈 세션 삭제 처리
-        if (currentSessionId) {
-            await disconnectCurrentSession();
-        }
-
-        // 세션 ID 업데이트
-        currentSessionId = sessionId;
-
-        const idToken = localStorage.getItem('auth_token');
-        if (!idToken) {
-            console.error('No auth token available');
-            return;
-        }
-
-        await ensureValidToken();
         
-        const response = await fetch(`${config.restEndpoint}/sessions/${sessionId}?userId=${userId}`, {
-            headers: {
-                'Authorization': `Bearer ${idToken}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error: ${response.status}`);
-        }
-        
-        const messages = await response.json();
-        
-        isEmptySession = checkEmptySession(messages);
-        updateNewChatButtonState();
-
-        if (!Array.isArray(messages)) {
-            console.error('Unexpected response format');
-            return;
-        }
-
-        const tempWelcome = document.querySelector('.temporary-welcome');
-        if (tempWelcome) {
-            tempWelcome.remove();
-        }
-
-        if (messages.length === 0) {
-            displayWelcomeMessage();
-        } else {
-            displayMessages(messages);
-        }
-
-        // WebSocket 연결 시도
-        await connectWebSocket();
-
-        // WebSocket 연결이 성공한 후에만 active 클래스 추가
-        // loading 클래스는 함수 마지막의 finally에서 제거됨
         const newActive = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
         if (newActive) {
             newActive.classList.add('active');
+            newActive.classList.add('loading');
         }
-        console.log('loadsession success')
-
+        
+        // WebSocket 연결 해제
+        if (socket) {
+            console.log('Closing previous WebSocket connection');
+            socket.onclose = null; // 이벤트 핸들러 제거
+            socket.close();
+            socket = null;
+        }
+        
+        // 현재 세션 연결 해제
+        if (currentSessionId) {
+            await disconnectCurrentSession();
+        }
+        
+        // 세션 ID 업데이트
+        currentSessionId = sessionId;
+        
+        // 채팅창 초기화 및 로딩 표시
+        document.getElementById('chatBox').innerHTML = '';
+        showTypingIndicator();
+        
+        // 1. REST API를 통해 세션 메시지 로드
+        try {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                throw new Error('No auth token available');
+            }
+            
+            await ensureValidToken();
+            
+            console.log('Fetching session messages for session:', sessionId);
+            const response = await fetch(`${config.restEndpoint}/sessions/${sessionId}?userId=${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch session messages: ${response.status}`);
+            }
+            
+            const messages = await response.json();
+            console.log('Session messages loaded:', messages.length);
+            
+            // 메시지 표시
+            hideTypingIndicator();
+            
+            if (Array.isArray(messages) && messages.length > 0) {
+                displayMessages(messages);
+                isEmptySession = checkEmptySession(messages);
+            } else {
+                displayWelcomeMessage();
+                isEmptySession = true;
+            }
+            
+            updateNewChatButtonState();
+        } catch (error) {
+            console.error('Error loading session messages:', error);
+            hideTypingIndicator();
+            appendMessage('ai', '대화 내역을 불러오는데 실패했습니다. 다시 시도해 주세요.');
+            throw error;
+        }
+        
+        // 2. REST API 로드가 성공한 후에만 WebSocket 연결 시도
+        try {
+            await connectWebSocket();
+            console.log('loadSession success with WebSocket connected');
+        } catch (wsError) {
+            console.error('WebSocket connection error:', wsError);
+            appendMessage('ai', '실시간 연결에 실패했습니다. 페이지를 새로고침해 주세요.');
+        }
     } catch (error) {
-        console.error('Error loading session:', error);
-        // 에러 발생 시 currentSessionId 롤백
+        console.error('Error in loadSession:', error);
         currentSessionId = null;
-        // 에러 발생 시에만 로딩 상태 초기화 (finally에서 로딩 클래스 제거)
+        hideTypingIndicator();
+        appendMessage('ai', '세션 로드에 실패했습니다. 다시 시도해 주세요.');
+    } finally {
+        // 로딩 상태 제거
+        const loadingElement = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
+        if (loadingElement) {
+            loadingElement.classList.remove('loading');
+        }
         loadingSessionId = null;
     }
 }
@@ -1752,14 +1906,18 @@ function insertCardName(cardName) {
 }
 
 function handleIncomingMessage(data) {
+    // 재시도 성공 시 재시도 메시지 및 인디케이터 제거
+    if ((data.type === 'stream' || data.type === 'end') && retryMessageId) {
+        removeRetryMessage();
+    }
+
     if (data.type === 'stream') {
         const content = extractContent(data.content);
-        const lastMessage = document.querySelector('.message:first-child');
+        const lastMessage = document.querySelector('.message:first-child:not(.retry-message)');
         
         if (lastMessage && lastMessage.classList.contains('ai-message')) {
             const contentDiv = lastMessage.querySelector('.message-content');
             if (contentDiv) {
-                // 메시지 누적 시 타로 카드 처리는 스트림이 완료된 후에 한 번에 처리
                 contentDiv.innerHTML += content.replace(/\n/g, '<br>');
             } else {
                 hideTypingIndicator();
@@ -1775,11 +1933,11 @@ function handleIncomingMessage(data) {
         hideTypingIndicator();
         
         // 스트림 종료 시 누적된 전체 메시지에 대해 타로 카드 처리 적용
-        const lastMessage = document.querySelector('.message:first-child');
+        const lastMessage = document.querySelector('.message:first-child:not(.retry-message)');
         if (lastMessage && lastMessage.classList.contains('ai-message')) {
             const contentDiv = lastMessage.querySelector('.message-content');
             if (contentDiv) {
-                const rawContent = contentDiv.innerText; // <br>을 \n으로 처리하기 위해 텍스트 추출
+                const rawContent = contentDiv.innerText;
                 const processedContent = processTarotCardNames(rawContent);
                 contentDiv.innerHTML = processedContent.replace(/\n/g, '<br>');
             }
@@ -1788,13 +1946,151 @@ function handleIncomingMessage(data) {
         console.log('Stream ended');
         scrollToBottom();
         enableInput();
+        
+        // 성공적으로 완료되면 재시도 카운터 초기화
+        resetRetryCounter();
     } else if (data.type === 'error') {
         hideTypingIndicator();
         console.error('Error:', data.message);
-        enableInput();
+        
+        // 에러 메시지에 DB 재개 관련 내용이 포함되어 있는지 확인
+        if (data.message.includes('Aurora DB instance') && data.message.includes('resuming')) {
+            handleDBResumingError();
+        } else {
+            // 다른 종류의 에러는 그대로 표시
+            enableInput();
+        }
     } else if (data.type === 'session_name_update') {
         updateSessionName(data.name);
         console.log(`세션명 업데이트됨: ${data.name}`);
+    } else if (data.type === 'session_history') {
+        // 세션 히스토리 수신 처리 (새로 추가)
+        handleSessionHistory(data.history);
+    }
+}
+
+// 세션 히스토리 처리 함수 (개선)
+function handleSessionHistory(historyData) {
+    try {
+        // 이미 JSON 문자열인 경우 파싱
+        const messages = typeof historyData === 'string' 
+            ? JSON.parse(historyData) 
+            : historyData;
+        
+        if (!Array.isArray(messages)) {
+            console.error('Unexpected history format:', historyData);
+            return;
+        }
+        
+        console.log('Received session history via WebSocket:', messages.length, 'messages');
+        
+        // 이 함수는 WebSocket에서 session_history 타입 메시지를 받았을 때만 호출됨
+        // REST API를 통해 이미 메시지를 로드했으므로 여기서는 새로운 메시지만 처리
+        
+        // 현재 메시지 목록이 비어있는 경우에만 메시지 표시
+        const chatBox = document.getElementById('chatBox');
+        if (chatBox && chatBox.childElementCount === 0 && messages.length > 0) {
+            // 대화 내역 표시
+            displayMessages(messages);
+            
+            // 세션이 비어있는지 확인
+            isEmptySession = checkEmptySession(messages);
+            updateNewChatButtonState();
+            
+            console.log('Displayed messages from WebSocket session history');
+        } else {
+            console.log('Skipping WebSocket session history display (messages already loaded)');
+        }
+    } catch (error) {
+        console.error('Error handling session history:', error);
+    }
+}
+
+function handleDBResumingError() {
+    if (retryCount === 0) {
+        // 첫 번째 에러 발생 시 준비 중 메시지 표시 (별도의 말풍선으로)
+        retryMessageId = 'retry-' + Date.now();
+        showRetryMessage();
+    } else {
+        // 이미 재시도 중인 경우 메시지 업데이트
+        updateRetryMessage();
+    }
+    
+    if (retryCount < maxRetries) {
+        // 지수 백오프를 사용한 재시도
+        const currentDelay = retryDelay * Math.pow(retryBackoffFactor, retryCount);
+        console.log(`재시도 ${retryCount + 1}/${maxRetries}, ${currentDelay}ms 후 시도`);
+        
+        setTimeout(() => {
+            retryCount++;
+            // 재시도 메시지 업데이트
+            updateRetryMessage();
+            // 메시지 재전송
+            retrySendMessage();
+        }, currentDelay);
+    } else {
+        // 최대 재시도 횟수 초과
+        if (retryMessageId) {
+            removeRetryMessage();
+            appendMessage('ai', '타로 책에 문제가 있나 봐요! 증상이 계속되면 제작자에게 문의해주세요.');
+        }
+        enableInput();
+        resetRetryCounter();
+    }
+}
+
+function showRetryMessage() {
+    const chatBox = document.getElementById('chatBox');
+    
+    // 재시도 메시지 요소 생성
+    const retryElement = document.createElement('div');
+    retryElement.className = 'message ai-message retry-message';
+    retryElement.id = retryMessageId;
+    
+    // 메시지 내용
+    const contentElement = document.createElement('div');
+    contentElement.className = 'message-content';
+    contentElement.innerHTML = `타로 책을 펼치는 중이에요. 잠시만 기다려 주세요. (${retryCount+1}/${maxRetries})`;
+    
+    retryElement.appendChild(contentElement);
+    
+    // 타이핑 인디케이터 추가
+    const indicatorElement = document.createElement('div');
+    indicatorElement.className = 'retry-typing-indicator';
+    retryElement.appendChild(indicatorElement);
+    
+    // 챗박스에 추가
+    chatBox.insertBefore(retryElement, chatBox.firstChild);
+    
+    // 타이핑 인디케이터 애니메이션 시작
+    startRetryTypingIndicator(indicatorElement);
+    
+    scrollToBottom();
+}
+
+function startRetryTypingIndicator(container) {
+    // 기존 인디케이터가 있으면 제거
+    if (retryTypingIndicator) {
+        retryTypingIndicator.destroy();
+    }
+    
+    // Lottie 애니메이션 로드
+    retryTypingIndicator = lottie.loadAnimation({
+        container: container,
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        path: 'https://lottie.host/e15076d7-141c-418d-bb17-02e547264ea0/IkeGLKFkDC.json'
+    });
+}
+
+function updateRetryMessage() {
+    const retryMessage = document.getElementById(retryMessageId);
+    if (retryMessage) {
+        const contentDiv = retryMessage.querySelector('.message-content');
+        if (contentDiv) {
+            contentDiv.innerHTML = `타로 책을 펼치는 중이에요. 잠시만 기다려 주세요. (${retryCount+1}/${maxRetries})`;
+        }
     }
 }
 
@@ -1809,6 +2105,76 @@ function displayMessages(messages) {
         }
     });
 }
+
+// ID로 메시지 제거
+function removeMessageById(messageId) {
+    const message = document.querySelector(`.message[data-id="${messageId}"]`);
+    if (message) {
+        message.remove();
+    }
+}
+
+// 메시지 재전송
+function retrySendMessage() {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        try {
+            connectWebSocket().then(() => {
+                const payload = {
+                    action: 'sendMessage',
+                    message: lastSentMessage,
+                    userId: userId,
+                    sessionId: currentSessionId
+                };
+                socket.send(JSON.stringify(payload));
+            }).catch(error => {
+                console.error('WebSocket 재연결 실패:', error);
+                handleDBResumingError(); // 재시도 로직 다시 실행
+            });
+        } catch (error) {
+            console.error('WebSocket 재연결 시도 중 오류:', error);
+            handleDBResumingError(); // 재시도 로직 다시 실행
+        }
+    } else {
+        const payload = {
+            action: 'sendMessage',
+            message: lastSentMessage,
+            userId: userId,
+            sessionId: currentSessionId
+        };
+        socket.send(JSON.stringify(payload));
+    }
+}
+function removeRetryMessage() {
+    const retryMessage = document.getElementById(retryMessageId);
+    if (retryMessage) {
+        // 애니메이션 효과와 함께 제거
+        retryMessage.style.opacity = '0';
+        retryMessage.style.transform = 'translateY(-10px)';
+        
+        // 애니메이션 후 실제 요소 제거
+        setTimeout(() => {
+            retryMessage.remove();
+        }, 300);
+        
+        // 타이핑 인디케이터 정리
+        if (retryTypingIndicator) {
+            retryTypingIndicator.destroy();
+            retryTypingIndicator = null;
+        }
+    }
+    retryMessageId = null;
+}
+
+function resetRetryCounter() {
+    retryCount = 0;
+    // 재시도 메시지가 있으면 제거
+    if (retryMessageId) {
+        removeRetryMessage();
+    }
+}
+
+
+
 
 async function sendMessage() {
     const messageInput = document.getElementById('messageInput');
@@ -1826,11 +2192,16 @@ async function sendMessage() {
     }
 }
 
-function appendMessage(sender, message) {
+function appendMessage(sender, message, messageId = null) {
     const chatBox = document.getElementById('chatBox');
 
     const messageElement = document.createElement('div');
     messageElement.className = `message ${sender}-message`;
+    
+    // 메시지 ID가 제공된 경우 데이터 속성 추가
+    if (messageId) {
+        messageElement.setAttribute('data-id', messageId);
+    }
     
     const contentElement = document.createElement('div');
     contentElement.className = 'message-content';
@@ -1907,7 +2278,7 @@ function extractContent(contentData) {
 //이미지 URL 생성
 function getTarotCardImageUrl(cardName) {
     const baseUrl = 'https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/cards/';
-    const fileName = CardMapping[cardName];
+    const fileName = tarotCardMapping[cardName];
     if (fileName) {
       return `${baseUrl}${fileName}.png`;
     }

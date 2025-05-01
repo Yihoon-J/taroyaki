@@ -972,6 +972,49 @@ background-color: #E2DBCC;
   justify-content: center;
 }
 
+/* 재시도 메시지 스타일 */
+.retry-message {
+  position: relative;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* 재시도 메시지 내 타이핑 인디케이터 */
+.retry-typing-indicator {
+  width: 50px;
+  height: 20px;
+  margin-top: 8px;
+  margin-left: 8px;
+  opacity: 0.8;
+}
+
+/* 애니메이션 효과 */
+@keyframes pulse {
+  0% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.7;
+  }
+}
+
+.retry-message {
+  animation: pulse 2s infinite;
+}
+
+/* 재시도 메시지가 활성화되었을 때 다른 메시지들의 투명도 감소 */
+.retry-message ~ .message:not(.retry-message) {
+  opacity: 0.7;
+}
+
+/* 재시도 메시지 내부 텍스트 스타일 */
+.retry-message .message-content {
+  font-weight: 500;
+  color: #6A6456;
+}
+
 #messageInput {
   flex: 1;
   height: 65px;
