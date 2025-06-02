@@ -28,6 +28,8 @@ let currentSessionId = null;
 let socket = null;
 let sessionLoadingAnimation = null;
 let loadingSessionId = null;
+let currentRequestId = null;
+let processedRequestIds = new Set();
 
 let retryCount = 0;
 let maxRetries = 4;
@@ -908,6 +910,7 @@ function sendMessageToCurrentSession(message) {
         console.error('WebSocket is not connected');
         return;
     }
+    
     appendMessage('user', message);
     
     // 메시지를 보내면 더 이상 빈 세션이 아님
@@ -917,11 +920,15 @@ function sendMessageToCurrentSession(message) {
     // 마지막 전송 메시지 저장
     lastSentMessage = message;
     
+    // 요청 ID 생성
+    currentRequestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const payload = {
         action: 'sendMessage',
         message: message,
         userId: userId,
-        sessionId: currentSessionId
+        sessionId: currentSessionId,
+        requestId: currentRequestId
     };
     socket.send(JSON.stringify(payload));
 }
@@ -1906,6 +1913,27 @@ function insertCardName(cardName) {
 }
 
 function handleIncomingMessage(data) {
+    // 요청 ID 확인 및 처리
+    const requestId = data.requestId;
+    
+    // 중복 요청 응답인 경우 무시
+    if (data.type === "duplicate_request") {
+        console.log(`중복 요청 감지: ${data.requestId}`);
+        return;
+    }
+    
+    // 이미 처리된 요청이거나 현재 요청이 아닌 경우 무시
+    if (requestId && processedRequestIds.has(requestId) && data.type === 'stream') {
+        console.log(`이미 처리된 요청: ${requestId}`);
+        return;
+    }
+    
+    // 현재 진행 중인 요청이 아니고, 스트림 시작인 경우 무시
+    if (requestId && currentRequestId && requestId !== currentRequestId && data.type === 'stream') {
+        console.log(`다른 요청 ID의 응답 무시: ${requestId}, 현재 요청: ${currentRequestId}`);
+        return;
+    }
+
     // 재시도 성공 시 재시도 메시지 및 인디케이터 제거
     if ((data.type === 'stream' || data.type === 'end') && retryMessageId) {
         removeRetryMessage();
@@ -1949,6 +1977,22 @@ function handleIncomingMessage(data) {
         
         // 성공적으로 완료되면 재시도 카운터 초기화
         resetRetryCounter();
+        
+        // 요청 ID가 있는 경우 처리 완료 표시
+        if (requestId) {
+            processedRequestIds.add(requestId);
+            
+            // 세트 크기 제한 (메모리 관리)
+            if (processedRequestIds.size > 20) {
+                const iterator = processedRequestIds.values();
+                processedRequestIds.delete(iterator.next().value);
+            }
+            
+            // 현재 요청 완료
+            if (requestId === currentRequestId) {
+                currentRequestId = null;
+            }
+        }
     } else if (data.type === 'error') {
         hideTypingIndicator();
         console.error('Error:', data.message);
@@ -1959,6 +2003,11 @@ function handleIncomingMessage(data) {
         } else {
             // 다른 종류의 에러는 그대로 표시
             enableInput();
+            
+            // 현재 요청 초기화 (다른 요청도 무시되지 않도록)
+            if (requestId === currentRequestId) {
+                currentRequestId = null;
+            }
         }
     } else if (data.type === 'session_name_update') {
         updateSessionName(data.name);
@@ -2062,8 +2111,8 @@ function showRetryMessage() {
     // 챗박스에 추가
     chatBox.insertBefore(retryElement, chatBox.firstChild);
     
-    // 타이핑 인디케이터 애니메이션 시작
-    startRetryTypingIndicator(indicatorElement);
+    // 타이핑 인디케이터 애니메이션 - 제거
+    // startRetryTypingIndicator(indicatorElement);
     
     scrollToBottom();
 }
@@ -2119,11 +2168,13 @@ function retrySendMessage() {
     if (!socket || socket.readyState !== WebSocket.OPEN) {
         try {
             connectWebSocket().then(() => {
+                // 재연결 성공 시, 새 요청 ID 생성 (기존 ID 유지)
                 const payload = {
                     action: 'sendMessage',
                     message: lastSentMessage,
                     userId: userId,
-                    sessionId: currentSessionId
+                    sessionId: currentSessionId,
+                    requestId: currentRequestId // 기존 요청 ID 유지
                 };
                 socket.send(JSON.stringify(payload));
             }).catch(error => {
@@ -2139,11 +2190,13 @@ function retrySendMessage() {
             action: 'sendMessage',
             message: lastSentMessage,
             userId: userId,
-            sessionId: currentSessionId
+            sessionId: currentSessionId,
+            requestId: currentRequestId // 기존 요청 ID 유지
         };
         socket.send(JSON.stringify(payload));
     }
 }
+
 function removeRetryMessage() {
     const retryMessage = document.getElementById(retryMessageId);
     if (retryMessage) {
@@ -2277,72 +2330,164 @@ function extractContent(contentData) {
 
 //이미지 URL 생성
 function getTarotCardImageUrl(cardName) {
-    const baseUrl = 'https://yihoon-tarotchat-bucket.s3.us-east-1.amazonaws.com/cards/';
-    const fileName = tarotCardMapping[cardName];
-    if (fileName) {
-      return `${baseUrl}${fileName}.png`;
-    }
-    console.warn(`Card mapping not found for: ${cardName}`);
-    return null;
+  // 카드 이름과 위키미디어 URL을 직접 매핑하는 객체
+  const cardImageUrls = {
+    'The Fool': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/RWS_Tarot_00_Fool.jpg/120px-RWS_Tarot_00_Fool.jpg',
+    'The Magician': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/RWS_Tarot_01_Magician.jpg/120px-RWS_Tarot_01_Magician.jpg',
+    'The High Priestess': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/RWS_Tarot_02_High_Priestess.jpg/120px-RWS_Tarot_02_High_Priestess.jpg',
+    'The Empress': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/RWS_Tarot_03_Empress.jpg/120px-RWS_Tarot_03_Empress.jpg',
+    'The Emperor': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/RWS_Tarot_04_Emperor.jpg/120px-RWS_Tarot_04_Emperor.jpg',
+    'The Hierophant': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/RWS_Tarot_05_Hierophant.jpg/120px-RWS_Tarot_05_Hierophant.jpg',
+    'The Lovers': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/RWS_Tarot_06_Lovers.jpg/120px-RWS_Tarot_06_Lovers.jpg',
+    'The Chariot': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/RWS_Tarot_07_Chariot.jpg/120px-RWS_Tarot_07_Chariot.jpg',
+    'Strength': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/RWS_Tarot_08_Strength.jpg/120px-RWS_Tarot_08_Strength.jpg',
+    'The Hermit': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/RWS_Tarot_09_Hermit.jpg/120px-RWS_Tarot_09_Hermit.jpg',
+    'Wheel of Fortune': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/RWS_Tarot_10_Wheel_of_Fortune.jpg/120px-RWS_Tarot_10_Wheel_of_Fortune.jpg',
+    'Justice': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/RWS_Tarot_11_Justice.jpg/120px-RWS_Tarot_11_Justice.jpg',
+    'The Hanged Man': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/RWS_Tarot_12_Hanged_Man.jpg/120px-RWS_Tarot_12_Hanged_Man.jpg',
+    'Death': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/RWS_Tarot_13_Death.jpg/120px-RWS_Tarot_13_Death.jpg',
+    'Temperance': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/RWS_Tarot_14_Temperance.jpg/120px-RWS_Tarot_14_Temperance.jpg',
+    'The Devil': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/RWS_Tarot_15_Devil.jpg/120px-RWS_Tarot_15_Devil.jpg',
+    'The Tower': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/RWS_Tarot_16_Tower.jpg/120px-RWS_Tarot_16_Tower.jpg',
+    'The Star': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/RWS_Tarot_17_Star.jpg/120px-RWS_Tarot_17_Star.jpg',
+    'The Moon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/RWS_Tarot_18_Moon.jpg/120px-RWS_Tarot_18_Moon.jpg',
+    'The Sun': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/RWS_Tarot_19_Sun.jpg/120px-RWS_Tarot_19_Sun.jpg',
+    'Judgement': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/RWS_Tarot_20_Judgement.jpg/120px-RWS_Tarot_20_Judgement.jpg',
+    'The World': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/RWS_Tarot_21_World.jpg/120px-RWS_Tarot_21_World.jpg',
+    
+    // 완드 (Wands)
+    'Ace of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Wands01.jpg/120px-Wands01.jpg',
+    'Two of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Wands02.jpg/120px-Wands02.jpg',
+    'Three of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Wands03.jpg/120px-Wands03.jpg',
+    'Four of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Wands04.jpg/120px-Wands04.jpg',
+    'Five of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Wands05.jpg/120px-Wands05.jpg',
+    'Six of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Wands06.jpg/120px-Wands06.jpg',
+    'Seven of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Wands07.jpg/120px-Wands07.jpg',
+    'Eight of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Wands08.jpg/120px-Wands08.jpg',
+    'Nine of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Tarot_Nine_of_Wands.jpg/120px-Tarot_Nine_of_Wands.jpg',
+    'Ten of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Wands10.jpg/120px-Wands10.jpg',
+    'Page of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Wands11.jpg/120px-Wands11.jpg',
+    'Knight of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Wands12.jpg/120px-Wands12.jpg',
+    'Queen of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Wands13.jpg/120px-Wands13.jpg',
+    'King of Wands': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Wands14.jpg/120px-Wands14.jpg',
+    
+    // 컵스 (Cups)
+    'Ace of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Cups01.jpg/120px-Cups01.jpg',
+    'Two of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Cups02.jpg/120px-Cups02.jpg',
+    'Three of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Cups03.jpg/120px-Cups03.jpg',
+    'Four of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Cups04.jpg/120px-Cups04.jpg',
+    'Five of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Cups05.jpg/120px-Cups05.jpg',
+    'Six of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Cups06.jpg/120px-Cups06.jpg',
+    'Seven of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Cups07.jpg/120px-Cups07.jpg',
+    'Eight of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Cups08.jpg/120px-Cups08.jpg',
+    'Nine of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Cups09.jpg/120px-Cups09.jpg',
+    'Ten of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Cups10.jpg/120px-Cups10.jpg',
+    'Page of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Cups11.jpg/120px-Cups11.jpg',
+    'Knight of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Cups12.jpg/120px-Cups12.jpg',
+    'Queen of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Cups13.jpg/120px-Cups13.jpg',
+    'King of Cups': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Cups14.jpg/120px-Cups14.jpg',
+    
+    // 소드 (Swords)
+    'Ace of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Swords01.jpg/120px-Swords01.jpg',
+    'Two of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Swords02.jpg/120px-Swords02.jpg',
+    'Three of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Swords03.jpg/120px-Swords03.jpg',
+    'Four of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Swords04.jpg/120px-Swords04.jpg',
+    'Five of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Swords05.jpg/120px-Swords05.jpg',
+    'Six of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Swords06.jpg/120px-Swords06.jpg',
+    'Seven of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Swords07.jpg/120px-Swords07.jpg',
+    'Eight of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Swords08.jpg/120px-Swords08.jpg',
+    'Nine of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Swords09.jpg/120px-Swords09.jpg',
+    'Ten of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Swords10.jpg/120px-Swords10.jpg',
+    'Page of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Swords11.jpg/120px-Swords11.jpg',
+    'Knight of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Swords12.jpg/120px-Swords12.jpg',
+    'Queen of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Swords13.jpg/120px-Swords13.jpg',
+    'King of Swords': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Swords14.jpg/120px-Swords14.jpg',
+    
+    // 펜타클 (Pentacles)
+    'Ace of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Pents01.jpg/120px-Pents01.jpg',
+    'Two of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Pents02.jpg/120px-Pents02.jpg',
+    'Three of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Pents03.jpg/120px-Pents03.jpg',
+    'Four of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Pents04.jpg/120px-Pents04.jpg',
+    'Five of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Pents05.jpg/120px-Pents05.jpg',
+    'Six of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Pents06.jpg/120px-Pents06.jpg',
+    'Seven of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Pents07.jpg/120px-Pents07.jpg',
+    'Eight of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Pents08.jpg/120px-Pents08.jpg',
+    'Nine of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Pents09.jpg/120px-Pents09.jpg',
+    'Ten of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Pents10.jpg/120px-Pents10.jpg',
+    'Page of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Pents11.jpg/120px-Pents11.jpg',
+    'Knight of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Pents12.jpg/120px-Pents12.jpg',
+    'Queen of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Pents13.jpg/120px-Pents13.jpg',
+    'King of Pentacles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Pents14.jpg/120px-Pents14.jpg'
+  };
+
+  // 카드 이름을 정확히 찾아 URL 반환
+  if (cardImageUrls[cardName]) {
+    return cardImageUrls[cardName];
   }
+  
+  // 찾지 못한 경우 경고 메시지와 함께 null 반환
+  console.warn(`타로 카드 이미지를 찾을 수 없음: ${cardName}`);
+  return null;
+}
 
 // 메시지 내용에서 타로 카드 이름 찾아 이미지 삽입
 function processTarotCardNames(messageContent) {
+    
     // 대괄호로 감싸진 카드 이름을 찾는 정규식 패턴
     const bracketPattern = /\[([^\]]+)\]/g;
     
     // 기존 패턴도 유지 (대괄호 패턴이 적용되지 않은 이전 메시지를 위해)
     const legacyPatterns = [
-      /([^(]+)\s+\(([^)]+)\):/g,  // "현재 상황 (Eight of Wands):" 패턴
-      /([^:]+):\s+([A-Z][a-zA-Z\s]+of\s+[A-Z][a-zA-Z]+|[A-Z][a-zA-Z\s]+)/g // "카드명: Eight of Wands" 패턴
+        /([^(]+)\s+\(([^)]+)\):/g,  // "현재 상황 (Eight of Wands):" 패턴
+        /([^:]+):\s+([A-Z][a-zA-Z\s]+of\s+[A-Z][a-zA-Z]+|[A-Z][a-zA-Z\s]+)/g // "카드명: Eight of Wands" 패턴
     ];
-  
+
     let processedContent = messageContent;
     
     // 1. 대괄호 패턴 처리 (새로운 형식)
     processedContent = processedContent.replace(bracketPattern, (match, cardName) => {
-      // 카드 이름이 매핑에 있는지 확인
-      if (tarotCardMapping[cardName]) {
+        // 카드 이름으로 이미지 URL 가져오기
         const imageUrl = getTarotCardImageUrl(cardName);
-        return `<div class="tarot-inline">
-                  <span class="tarot-card-name">[${cardName}]</span>
-                  <img src="${imageUrl}" alt="${cardName}" class="tarot-card-image">
+        if (imageUrl) {
+        return `<div class="tarot-card-block">
+                    <span class="tarot-card-name">[${cardName}]</span>
+                    <img src="${imageUrl}" alt="${cardName}" class="tarot-card-image">
                 </div>`;
-      }
-      return match; // 매핑이 없으면 원본 텍스트 반환
+        }
+        return match; // 이미지 URL을 찾지 못한 경우 원본 텍스트 유지
     });
     
     // 2. 기존 패턴 처리 (이전 형식 호환성 유지)
     
     // 첫 번째 패턴: "xxx (카드이름):" 형식 처리
-    processedContent = processedContent.replace(legacyPatterns[0], (match, prefix, cardName) => {
-      // 카드 이름이 매핑에 있는지 확인
-      if (tarotCardMapping[cardName]) {
-        const imageUrl = getTarotCardImageUrl(cardName);
-        return `<div class="tarot-section">
-                  <div class="tarot-header">${prefix} (${cardName}):</div>
-                  <div class="tarot-card-container">
-                    <img src="${imageUrl}" alt="${cardName}" class="tarot-card-image">
-                  </div>
-                </div>`;
-      }
-      return match; // 매핑이 없으면 원본 텍스트 반환
-    });
+    // processedContent = processedContent.replace(legacyPatterns[0], (match, prefix, cardName) => {
+    //   // 카드 이름이 매핑에 있는지 확인
+    //   if (tarotCardMapping[cardName]) {
+    //     const imageUrl = getTarotCardImageUrl(cardName);
+    //     return `<div class="tarot-section">
+    //               <div class="tarot-header">${prefix} (${cardName}):</div>
+    //               <div class="tarot-card-container">
+    //                 <img src="${imageUrl}" alt="${cardName}" class="tarot-card-image">
+    //               </div>
+    //             </div>`;
+    //   }
+    //   return match; // 매핑이 없으면 원본 텍스트 반환
+    // });
     
     // 두 번째 패턴: "카드명: Eight of Wands" 형식 처리
-    processedContent = processedContent.replace(legacyPatterns[1], (match, prefix, cardName) => {
-      if (tarotCardMapping[cardName]) {
-        const imageUrl = getTarotCardImageUrl(cardName);
-        return `<div class="tarot-section">
-                  <div class="tarot-header">${prefix}:</div>
-                  <div class="tarot-card-container">
-                    <img src="${imageUrl}" alt="${cardName}" class="tarot-card-image">
-                    <div class="tarot-card-name">${cardName}</div>
-                  </div>
-                </div>`;
-      }
-      return match;
-    });
+    // processedContent = processedContent.replace(legacyPatterns[1], (match, prefix, cardName) => {
+    //   if (tarotCardMapping[cardName]) {
+    //     const imageUrl = getTarotCardImageUrl(cardName);
+    //     return `<div class="tarot-section">
+    //               <div class="tarot-header">${prefix}:</div>
+    //               <div class="tarot-card-container">
+    //                 <img src="${imageUrl}" alt="${cardName}" class="tarot-card-image">
+    //                 <div class="tarot-card-name">${cardName}</div>
+    //               </div>
+    //             </div>`;
+    //   }
+    //   return match;
+    // });
     
     return processedContent;
   }

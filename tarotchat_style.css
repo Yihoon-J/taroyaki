@@ -830,27 +830,43 @@ background-color: #E2DBCC;
 
 .tarot-header {
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   color: #332A1A;
 }
 
 .tarot-card-container {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   margin: 10px 0;
-  flex-wrap: wrap;
 }
 
-/* 대괄호로 감싸진 카드 이름용 인라인 컨테이너 */
-.tarot-inline {
-  display: inline-flex;
-  align-items: center;
-  margin: 5px 0;
-  flex-wrap: wrap;
+/* 타로 카드 블록 레이아웃 스타일 */
+.tarot-card-block {
+  display: flex;
+  flex-direction: column;  /* 세로 배치로 변경 */
+  align-items: flex-start; /* 왼쪽 정렬 */
+  margin: 15px 0;
+}
+
+.tarot-card-block .tarot-card-name {
+  font-weight: 600;
+  color: #332A1A;
+  margin-bottom: 10px; /* 이름과 이미지 사이 간격 */
+}
+
+.tarot-card-block .tarot-card-image {
+  width: 160px; /* 이미지 크기 키움 */
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+  margin: 5px 0 15px 0; /* 상하 간격 조정 */
+  cursor: pointer;
 }
 
 .tarot-card-image {
-  width: 120px;
+  width: 160px;
   height: auto;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -872,7 +888,7 @@ background-color: #E2DBCC;
 /* 반응형 스타일 */
 @media (max-width: 768px) {
   .tarot-card-image {
-    width: 100px;
+    width: 120px;
   }
 }
 
@@ -882,8 +898,10 @@ background-color: #E2DBCC;
   }
   
   .tarot-card-container {
-    flex-direction: column;
-    align-items: flex-start;
+    display: flex;
+    flex-direction: column; /* 세로 배치로 변경 */
+    align-items: flex-start; /* 왼쪽 정렬 */
+    margin: 10px 0;
   }
   
   .tarot-card-name {

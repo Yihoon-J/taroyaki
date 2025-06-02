@@ -3,6 +3,7 @@ import boto3
 import time
 from datetime import datetime
 import traceback
+import uuid
 import re
 
 # Bedrock Runtime 클라이언트 초기화
@@ -18,11 +19,19 @@ MAX_RETRY_ATTEMPTS = 3  # 최대 재시도 횟수
 INITIAL_RETRY_DELAY = 4  # 초기 재시도 간격 (초)
 BACKOFF_FACTOR = 1.5  # 재시도 간격 증가 계수
 
-def stream_to_connection(connection_id, content):
+def stream_to_connection(connection_id, content, request_id=None):
     try:
+        data = {
+            "type": "stream",
+            "content": content
+        }
+        # 요청 ID가 있으면 포함
+        if request_id:
+            data["requestId"] = request_id
+            
         gateway_client.post_to_connection(
             ConnectionId=connection_id,
-            Data=json.dumps({"type": "stream", "content": content}).encode('utf-8')
+            Data=json.dumps(data).encode('utf-8')
         )
     except Exception as e:
         print(f"Error streaming: {str(e)}")
@@ -68,11 +77,23 @@ def send_session_name_update(connection_id, new_name):
         Data=json.dumps({"type": "session_name_update", "name": new_name}).encode('utf-8')
     )
 
-def invoke_bedrock_agent_with_retry(connection_id, user_id, session_id, user_message, conversation_json):
+def invoke_bedrock_agent_with_retry(connection_id, user_id, session_id, user_message, conversation_json, request_id=None):
     """Bedrock Agent 호출 함수 (재시도 로직 포함)"""
     retry_count = 0
     retry_delay = INITIAL_RETRY_DELAY
     last_error = None
+    
+    # 중복 요청 확인
+    if request_id and is_duplicate_request(user_id, session_id, request_id):
+        print(f"Duplicate request detected: {request_id}")
+        gateway_client.post_to_connection(
+            ConnectionId=connection_id,
+            Data=json.dumps({
+                "type": "duplicate_request", 
+                "requestId": request_id
+            }).encode('utf-8')
+        )
+        return "ALREADY_PROCESSED"
     
     while retry_count < MAX_RETRY_ATTEMPTS:
         try:
@@ -89,14 +110,18 @@ def invoke_bedrock_agent_with_retry(connection_id, user_id, session_id, user_mes
                 }
             )
             
-            # 응답 스트리밍
+            # 응답 스트리밍 - request_id 전달
             full_response = ""
             for event in agent_response['completion']:
                 if 'chunk' in event:
                     chunk = event['chunk']['bytes'].decode('utf-8')
-                    stream_to_connection(connection_id, chunk)
+                    stream_to_connection(connection_id, chunk, request_id)
                     full_response += chunk
             
+            # 요청 처리 완료 표시
+            if request_id:
+                record_request(user_id, session_id, request_id)
+                
             return full_response
             
         except Exception as e:
@@ -108,8 +133,7 @@ def invoke_bedrock_agent_with_retry(connection_id, user_id, session_id, user_mes
             if is_aurora_resuming_error(error_str):
                 retry_count += 1
                 
-                # 클라이언트에 재시도 중임을 알림
-                retry_message = f"서비스를 준비 중입니다... ({retry_count}/{MAX_RETRY_ATTEMPTS})"
+                # 클라이언트에 재시도 중임을 알림 - 요청 ID 포함
                 try:
                     gateway_client.post_to_connection(
                         ConnectionId=connection_id,
@@ -120,7 +144,8 @@ def invoke_bedrock_agent_with_retry(connection_id, user_id, session_id, user_mes
                                 "current_attempt": retry_count,
                                 "max_attempts": MAX_RETRY_ATTEMPTS,
                                 "delay": retry_delay * BACKOFF_FACTOR
-                            }
+                            },
+                            "requestId": request_id
                         }).encode('utf-8')
                     )
                 except Exception as notify_err:
@@ -181,6 +206,38 @@ def handle_init_session(connection_id, user_id, session_id):
         
         return False
 
+# DynamoDB에 별도 테이블 생성 필요 없이 기존 항목에 추가 속성으로 관리
+def is_duplicate_request(user_id, session_id, request_id):
+    response = table.get_item(Key={'UserId': user_id, 'SessionId': session_id})
+    if 'Item' in response:
+        processed_requests = response['Item'].get('ProcessedRequests', [])
+        return request_id in processed_requests
+    return False
+
+def record_request(user_id, session_id, request_id):
+    # 최근 20개 요청 ID만 유지 (공간 절약)
+    table.update_item(
+        Key={'UserId': user_id, 'SessionId': session_id},
+        UpdateExpression="SET ProcessedRequests = list_append(if_not_exists(ProcessedRequests, :empty_list), :request_id)",
+        ExpressionAttributeValues={
+            ':empty_list': [],
+            ':request_id': [request_id]
+        }
+    )
+    
+    # 10개로 제한 (공간 절약)
+    response = table.get_item(Key={'UserId': user_id, 'SessionId': session_id})
+    if 'Item' in response:
+        processed_requests = response['Item'].get('ProcessedRequests', [])
+        if len(processed_requests) > 20:
+            table.update_item(
+                Key={'UserId': user_id, 'SessionId': session_id},
+                UpdateExpression="SET ProcessedRequests = :new_list",
+                ExpressionAttributeValues={
+                    ':new_list': processed_requests[-20:]
+                }
+            )
+
 # 전역 변수로 활성 연결 추적 맵 추가
 active_connections = {}  # session_id -> connection_id 매핑
 
@@ -208,10 +265,28 @@ def lambda_handler(event, context):
         action = body.get('action', '')
         user_id = body.get('userId')
         session_id = body.get('sessionId')
-        
+        request_id = body.get('requestId')  # 요청 ID 추출
+
         if not session_id or not user_id:
             raise Exception("Missing required parameters: userId and sessionId")
         
+        # 고유 요청 ID 생성 (없는 경우)
+        if not request_id:
+            request_id = str(uuid.uuid4())
+            print(f"Generated request ID: {request_id}")
+        
+        # 메시지 처리 전 중복 체크 (요청 ID가 있는 경우만)
+        if request_id and action == 'sendMessage' and is_duplicate_request(user_id, session_id, request_id):
+            # 중복 요청으로 판단하고 처리 중지
+            gateway_client.post_to_connection(
+                ConnectionId=connection_id,
+                Data=json.dumps({
+                    "type": "duplicate_request", 
+                    "requestId": request_id
+                }).encode('utf-8')
+            )
+            return {'statusCode': 200}
+
         # 액션 타입에 따라 다른 처리
         if action == 'initSession':
             # 이미 이 세션에 대한 활성 연결이 있는지 확인
@@ -272,10 +347,14 @@ def lambda_handler(event, context):
                 # 대화 내역을 세션 속성으로 변환
                 conversation_json = json.dumps(existing_messages)
 
-                # 재시도 로직이 포함된 함수를 사용하여 Bedrock Agent 호출
+                # 재시도 로직이 포함된 함수를 사용하여 Bedrock Agent 호출 (요청 ID 전달)
                 full_response = invoke_bedrock_agent_with_retry(
-                    connection_id, user_id, session_id, user_message, conversation_json
+                    connection_id, user_id, session_id, user_message, conversation_json, request_id
                 )
+                
+                # 이미 처리된 요청인 경우 추가 처리 없이 성공 응답
+                if full_response == "ALREADY_PROCESSED":
+                    return {'statusCode': 200}
 
                 current_time = datetime.now().isoformat()
                 
@@ -293,11 +372,18 @@ def lambda_handler(event, context):
                     }
                 )
 
-                # 완료 메시지 전송
+                # 완료 메시지 전송 (요청 ID 포함)
                 gateway_client.post_to_connection(
                     ConnectionId=connection_id,
-                    Data=json.dumps({"type": "end"}).encode('utf-8')
+                    Data=json.dumps({
+                        "type": "end",
+                        "requestId": request_id
+                    }).encode('utf-8')
                 )
+                
+                # 이 요청을 처리된 요청으로 기록
+                if request_id:
+                    record_request(user_id, session_id, request_id)
                 
                 return {'statusCode': 200}
             except Exception as e:
@@ -308,7 +394,11 @@ def lambda_handler(event, context):
                 try:
                     gateway_client.post_to_connection(
                         ConnectionId=connection_id,
-                        Data=json.dumps({"type": "error", "message": str(e)}).encode('utf-8')
+                        Data=json.dumps({
+                            "type": "error", 
+                            "message": str(e),
+                            "requestId": request_id  # 요청 ID 포함
+                        }).encode('utf-8')
                     )
                 except Exception as notify_err:
                     print(f"Error notifying client about error: {str(notify_err)}")
