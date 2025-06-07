@@ -1,6 +1,6 @@
 # 🔮 Taroyaki
 
-[Service URL](https://dje3vsz99xjr1.cloudfront.net/) 현재 비용 문제로 운영이 중단된 상태입니다. 기본적인 대화는 나눌 수 있으나 RAG가 동작하지 않아 리딩과 관련된 질의가 불가합니다.
+[**Service URL**](https://dje3vsz99xjr1.cloudfront.net/) 비용 문제로 운영이 중단된 상태입니다. 기본적인 대화는 나눌 수 있으나 RAG가 동작하지 않아 리딩과 관련된 질의가 불가합니다.
 
 > AI 기반 타로 카드 상담 챗봇
 
@@ -35,11 +35,13 @@ AI 기반의 타로 카드 상담 챗봇으로, 사용자가 타로 카드를 �
 - **AWS Cognito** - 사용자 인증 및 권한 관리
 
 ### Authentication
-- **OAuth 2.0** - 사용자 인증
+- **OAuth 2.0** - Cognito User Pool 기반 사용자 인증
+- **OIDC** - Kakao 로그인 구현
 - **JWT** - 토큰 기반 세션 관리
 - **자동 토큰 갱신**
 
 ## 🏗 아키텍처
+![](https://i.ibb.co/C3T5VCtq/2025-06-07-18-13-48.png)
 
 프로젝트는 Full serverless 아키텍처로 구성:
 
