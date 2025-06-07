@@ -1,6 +1,6 @@
 # 🔮 Taroyaki
 
-[Service URL](https://dje3vsz99xjr1.cloudfront.net/) 현재 비용 문제로 운영이 중단된 상태입니다.
+[Service URL](https://dje3vsz99xjr1.cloudfront.net/) 현재 비용 문제로 운영이 중단된 상태입니다. 기본적인 대화는 나눌 수 있으나 RAG가 동작하지 않아 리딩과 관련된 질의가 불가합니다.
 
 > AI 기반 타로 카드 상담 챗봇
 
