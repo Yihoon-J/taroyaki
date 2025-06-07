@@ -31,7 +31,7 @@ AI 기반의 타로 카드 상담 챗봇으로, 사용자가 타로 카드를 �
 - **AWS API Gateway** - REST API 및 WebSocket API 관리
 - **AWS Lambda** - 서버리스 컴퓨팅
 - **Amazon DynamoDB** - 세션 및 사용자 데이터 저장
-- **Amazon Aurora** - 관계형 데이터 관리
+- **Amazon Aurora** - PostgreSQL Vector RAG
 - **AWS Cognito** - 사용자 인증 및 권한 관리
 
 ### Authentication
@@ -39,6 +39,14 @@ AI 기반의 타로 카드 상담 챗봇으로, 사용자가 타로 카드를 �
 - **OIDC** - Kakao 로그인 구현
 - **JWT** - 토큰 기반 세션 관리
 - **자동 토큰 갱신**
+
+### Monitoring
+- **Amazon Cloudwatch** - 백엔드 인프라 모니터링
+- **Amazon Data Firehose** - 사용자 로그 스트림 저장
+- **Amazon S3** - 사용자 로그 저장
+- **Amazon Athena** - 로그 쿼리 플랫폼
+- **Grafana** Cloudwatch Metrics 대시보드
+- **Tableau** 사용자 로그 대시보드 *(구현 예정)*
 
 ## 🏗 아키텍처
 ![](https://i.ibb.co/C3T5VCtq/2025-06-07-18-13-48.png)
