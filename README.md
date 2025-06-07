@@ -45,8 +45,8 @@ AI 기반의 타로 카드 상담 챗봇으로, 사용자가 타로 카드를 �
 - **Amazon Data Firehose** - 사용자 로그 스트림 저장
 - **Amazon S3** - 사용자 로그 저장
 - **Amazon Athena** - 로그 쿼리 플랫폼
-- **Grafana** Cloudwatch Metrics 대시보드
-- **Tableau** 사용자 로그 대시보드 *(구현 예정)*
+- **Grafana** - Cloudwatch Metrics 대시보드
+- **Tableau** - 사용자 로그 대시보드 *(구현 예정)*
 
 ## 🏗 아키텍처
 ![](https://i.ibb.co/C3T5VCtq/2025-06-07-18-13-48.png)
